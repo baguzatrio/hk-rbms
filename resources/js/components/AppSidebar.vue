@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { 
     BookOpen, 
@@ -15,6 +14,7 @@ import {
     Building, 
     History 
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -29,9 +29,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import admin from '@/routes/admin';
 import bookings from '@/routes/bookings';
 import schedule from '@/routes/schedule';
-import admin from '@/routes/admin';
 import type { NavItem } from '@/types';
 
 const page = usePage();
@@ -109,6 +109,7 @@ const mainNavItems = computed(() => {
     if (user.value?.role === 'admin') {
         return adminMenu.value;
     }
+
     return userMenu;
 });
 

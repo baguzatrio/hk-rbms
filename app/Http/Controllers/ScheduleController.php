@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,35 +36,16 @@ class ScheduleController extends Controller
             ]
         ]);
 
-        return Inertia::render('Schedule/Index', [
+        return Inertia::render('JadwalRapat', [
             'bookings' => $bookings,
             'rooms'    => Room::active()->select('id', 'name', 'floor')->get(),
             'filters'  => $request->only(['room_id']),
         ]);
     }
 
-    public function show(Room $room): Response
+    public function show(Room $room): RedirectResponse
     {
-        $bookings = Book::approved()
-            ->where('room_id', $room->id)
-            ->with(['requester.organization'])
-            ->get()
-            ->map(fn($b) => [
-                'id'          => $b->id,
-                'title'       => $b->title,
-                'start_date'  => $b->start_date->format('Y-m-d'),
-                'end_date'    => $b->end_date?->format('Y-m-d'),
-                'start_hour'  => $b->start_hour,
-                'finish_hour' => $b->finish_hour,
-                'requester'   => [
-                    'name' => $b->requester->name,
-                    'org'  => $b->requester->organization?->shortname,
-                ]
-            ]);
-
-        return Inertia::render('Schedule/Show', [
-            'room'     => $room,
-            'bookings' => $bookings
-        ]);
+        return redirect()->route('schedule.index', ['room_id' => $room->id]);
     }
 }
+

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ClipboardCheck, CheckCircle2, Building2, Users, Calendar, Clock, MapPin, ArrowRight } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ClipboardCheck, CheckCircle2, Building2, Users, Calendar, Clock, MapPin, ArrowRight } from 'lucide-vue-next';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Stats {
     pendingCount: number;

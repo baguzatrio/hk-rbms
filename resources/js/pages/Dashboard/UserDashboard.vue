@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { usePage } from '@inertiajs/vue3';
 import { Calendar, CalendarPlus, Clock, MapPin, CheckCircle, HelpCircle, XCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Booking {
     id: number;
