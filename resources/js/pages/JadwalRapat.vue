@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { 
-    Calendar as CalendarIcon, 
-    Clock, 
-    ChevronLeft, 
-    ChevronRight, 
-    List, 
-    Grid, 
+import { onClickOutside } from '@vueuse/core';
+import {
+    Calendar as CalendarIcon,
+    Clock,
+    ChevronLeft,
+    ChevronRight,
+    List,
+    Grid,
     Users,
     Building2,
-    CalendarDays
+    CalendarDays,
+    Search,
+    ChevronDown
 } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +65,35 @@ const breadcrumbs: BreadcrumbItem[] = [
 // State variables
 const currentDate = ref<Date>(new Date());
 const viewMode = ref<'calendar' | 'agenda'>('calendar');
+const isRoomDropdownOpen = ref(false);
+const searchQuery = ref('');
+const roomDropdownRef = ref<HTMLElement | null>(null);
+
+onClickOutside(roomDropdownRef, () => {
+    isRoomDropdownOpen.value = false;
+});
+
+const filteredRooms = computed(() => {
+    const query = searchQuery.value.toLowerCase().trim();
+
+    if (!query) {
+        return props.rooms;
+    }
+
+    return props.rooms.filter(
+        (room) => room.name.toLowerCase().includes(query) || room.floor.toLowerCase().includes(query)
+    );
+});
+
+const selectedRoomName = computed(() => {
+    if (activeRoomId.value === null) {
+        return 'Semua Ruangan';
+    }
+
+    const room = props.rooms.find((r) => r.id === activeRoomId.value);
+
+    return room ? `${room.name} (Lt. ${room.floor})` : 'Semua Ruangan';
+});
 
 // Get current selected room ID from filter props
 const activeRoomId = computed(() => {
@@ -104,8 +136,8 @@ const filterByRoom = (roomId: number | null) => {
 // Date helpers
 const isSameDay = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
+        d1.getMonth() === d2.getMonth() &&
+        d1.getDate() === d2.getDate();
 };
 
 const formatDateString = (date: Date) => {
@@ -126,15 +158,15 @@ const getBookingsForDate = (date: Date) => {
 const daysInMonth = computed(() => {
     const year = currentDate.value.getFullYear();
     const month = currentDate.value.getMonth();
-    
+
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
-    
+
     // Day of week for first day (0 = Sun, 1 = Mon... 6 = Sat)
     const startDayOfWeek = firstDayOfMonth.getDay();
-    
+
     const days = [];
-    
+
     // Previous Month's Ending Days padding
     const prevMonthLastDay = new Date(year, month, 0).getDate();
 
@@ -147,7 +179,7 @@ const daysInMonth = computed(() => {
             bookings: getBookingsForDate(d)
         });
     }
-    
+
     // Current Month's Days
     for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
         const d = new Date(year, month, i);
@@ -158,7 +190,7 @@ const daysInMonth = computed(() => {
             bookings: getBookingsForDate(d)
         });
     }
-    
+
     // Next Month's Starting Days padding to make full weeks
     // Typically 35 or 42 grid cells
     const totalCells = days.length <= 35 ? 35 : 42;
@@ -173,7 +205,7 @@ const daysInMonth = computed(() => {
             bookings: getBookingsForDate(d)
         });
     }
-    
+
     return days;
 });
 
@@ -183,8 +215,8 @@ const agendaBookings = computed(() => {
         const dateCompare = a.start_date.localeCompare(b.start_date);
 
         if (dateCompare !== 0) {
-return dateCompare;
-}
+            return dateCompare;
+        }
 
         return a.start_hour.localeCompare(b.start_hour);
     });
@@ -197,8 +229,8 @@ const formatTimeRange = (start: string, finish: string) => {
 
 const formatDateLong = (dateStr: string) => {
     if (!dateStr) {
-return '';
-}
+        return '';
+    }
 
     const date = new Date(dateStr);
     const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
@@ -218,8 +250,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
     const todayStr = formatDateString(new Date());
 
     if (dateStr < todayStr) {
-return true;
-}
+        return true;
+    }
 
     if (dateStr === todayStr) {
         const now = new Date();
@@ -233,6 +265,7 @@ return true;
 </script>
 
 <template>
+
     <Head title="Jadwal Rapat" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
@@ -241,76 +274,102 @@ return true;
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Jadwal Sewa Ruang Rapat
+                        Jadwal Ruang Rapat
                     </h1>
                     <p class="text-sm text-muted-foreground mt-1">
                         Lihat ketersediaan dan jadwal pemakaian ruang rapat aktif yang sudah disetujui.
                     </p>
                 </div>
                 <!-- View Mode Toggle -->
-                <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start sm:self-auto">
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        class="h-8 gap-1.5 px-3" 
+                <div
+                    class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start sm:self-auto">
+                    <Button variant="ghost" size="sm" class="h-8 gap-1.5 px-3"
                         :class="viewMode === 'calendar' ? 'bg-white dark:bg-slate-900 shadow-xs text-blue-900 dark:text-blue-400 font-semibold' : 'text-slate-600 dark:text-slate-400'"
-                        @click="viewMode = 'calendar'"
-                    >
+                        @click="viewMode = 'calendar'">
                         <Grid class="h-4 w-4" />
                         Kalender
                     </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        class="h-8 gap-1.5 px-3" 
+                    <Button variant="ghost" size="sm" class="h-8 gap-1.5 px-3"
                         :class="viewMode === 'agenda' ? 'bg-white dark:bg-slate-900 shadow-xs text-blue-900 dark:text-blue-400 font-semibold' : 'text-slate-600 dark:text-slate-400'"
-                        @click="viewMode = 'agenda'"
-                    >
+                        @click="viewMode = 'agenda'">
                         <List class="h-4 w-4" />
                         Agenda
                     </Button>
                 </div>
             </div>
 
-            <!-- Rooms Filter Pills -->
-            <div class="space-y-2">
+            <!-- Rooms Filter Dropdown -->
+            <div class="space-y-2 relative" ref="roomDropdownRef">
                 <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter Ruangan</label>
-                <div class="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        class="rounded-full transition-all border-slate-200 dark:border-slate-800"
-                        :class="activeRoomId === null ? 'bg-blue-900 hover:bg-blue-800 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 dark:hover:bg-blue-700' : 'bg-transparent text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'"
-                        @click="filterByRoom(null)"
-                    >
-                        Semua Ruangan
+                <div>
+                    <!-- Dropdown Trigger Button -->
+                    <Button variant="outline" size="sm"
+                        class="flex items-center justify-between gap-2 w-full max-w-xs md:max-w-sm rounded-lg border-slate-200 dark:border-slate-800 text-left bg-white dark:bg-slate-900 font-medium px-3 py-2 text-sm text-slate-700 dark:text-slate-300 shadow-xs cursor-pointer"
+                        @click="isRoomDropdownOpen = !isRoomDropdownOpen">
+                        <span class="truncate">{{ selectedRoomName }}</span>
+                        <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
                     </Button>
-                    <Button
-                        v-for="room in rooms"
-                        :key="room.id"
-                        variant="outline"
-                        size="sm"
-                        class="rounded-full transition-all border-slate-200 dark:border-slate-800"
-                        :class="activeRoomId === room.id ? 'bg-blue-900 hover:bg-blue-800 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 dark:hover:bg-blue-700' : 'bg-transparent text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'"
-                        @click="filterByRoom(room.id)"
-                    >
-                        {{ room.name }} <span class="ml-1 text-[10px] opacity-75 font-normal">Lt. {{ room.floor }}</span>
-                    </Button>
+
+                    <!-- Dropdown Menu -->
+                    <div v-if="isRoomDropdownOpen"
+                        class="absolute left-0 z-50 mt-1.5 w-full max-w-xs md:max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100">
+                        <!-- Search Box Input -->
+                        <div class="flex items-center border-b border-slate-100 dark:border-slate-800 px-3 py-2">
+                            <Search class="h-4 w-4 shrink-0 text-slate-400 mr-2" />
+                            <input v-model="searchQuery" type="text" placeholder="Cari nama ruangan..."
+                                class="w-full bg-transparent border-0 p-0 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-0 focus:outline-hidden"
+                                autofocus />
+                        </div>
+
+                        <!-- Dropdown Options List -->
+                        <div
+                            class="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50 dark:divide-slate-800/40 bg-white dark:bg-slate-900">
+                            <!-- All Rooms Option (Default option) -->
+                            <button type="button"
+                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                :class="activeRoomId === null ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                @click="() => { filterByRoom(null); isRoomDropdownOpen = false; searchQuery = ''; }">
+                                <span>Semua Ruangan</span>
+                            </button>
+
+                            <!-- Filtered Rooms Options -->
+                            <div v-if="filteredRooms.length > 0" class="pt-1 space-y-0.5">
+                                <button v-for="room in filteredRooms" :key="room.id" type="button"
+                                    class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                    :class="activeRoomId === room.id ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                    @click="() => { filterByRoom(room.id); isRoomDropdownOpen = false; searchQuery = ''; }">
+                                    <div class="flex flex-col min-w-0">
+                                        <span class="truncate font-medium">{{ room.name }}</span>
+                                        <span class="text-xs text-muted-foreground">Lantai {{ room.floor }}</span>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <!-- Empty Search State -->
+                            <div v-else class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                                Tidak ada ruangan ditemukan
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Calendar View Mode -->
             <div v-if="viewMode === 'calendar'" class="space-y-4">
                 <!-- Calendar Controls -->
-                <div class="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-4 rounded-xl shadow-xs">
+                <div
+                    class="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-4 rounded-xl shadow-xs">
                     <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <CalendarIcon class="h-5 w-5 text-blue-900 dark:text-blue-400" />
                         {{ getMonthYearString }}
                     </h2>
                     <div class="flex items-center gap-2">
                         <Button variant="outline" size="sm" class="h-8" @click="goToToday">Hari Ini</Button>
-                        <div class="flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                            <Button variant="ghost" size="icon" class="h-8 w-8 rounded-none border-r border-slate-200 dark:border-slate-800" @click="prevMonth">
+                        <div
+                            class="flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                            <Button variant="ghost" size="icon"
+                                class="h-8 w-8 rounded-none border-r border-slate-200 dark:border-slate-800"
+                                @click="prevMonth">
                                 <ChevronLeft class="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" class="h-8 w-8 rounded-none" @click="nextMonth">
@@ -324,7 +383,8 @@ return true;
                 <Card class="border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm">
                     <CardContent class="p-0">
                         <!-- Days of Week Header -->
-                        <div class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-center py-3 text-xs font-semibold">
+                        <div
+                            class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-center py-3 text-xs font-semibold">
                             <div class="text-red-600 dark:text-red-400">Minggu</div>
                             <div class="text-slate-600 dark:text-slate-400">Senin</div>
                             <div class="text-slate-600 dark:text-slate-400">Selasa</div>
@@ -335,53 +395,46 @@ return true;
                         </div>
 
                         <!-- Grid Cells -->
-                        <div class="grid grid-cols-7 auto-rows-[110px] sm:auto-rows-[125px] divide-x divide-y divide-slate-100 dark:divide-slate-800 bg-slate-50/20 dark:bg-slate-950/20">
-                            <div 
-                                v-for="(day, index) in daysInMonth" 
-                                :key="index"
+                        <div
+                            class="grid grid-cols-7 auto-rows-[110px] sm:auto-rows-[125px] divide-x divide-y divide-slate-100 dark:divide-slate-800 bg-slate-50/20 dark:bg-slate-950/20">
+                            <div v-for="(day, index) in daysInMonth" :key="index"
                                 class="p-2 transition-all relative flex flex-col group bg-white dark:bg-slate-900"
                                 :class="[
                                     day.isCurrentMonth ? '' : 'bg-slate-50/50 dark:bg-slate-900/30 text-slate-400 dark:text-slate-600',
                                     day.isToday ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
-                                ]"
-                            >
+                                ]">
                                 <!-- Day Number / Today Badge -->
                                 <div class="flex items-center justify-between mb-1">
-                                    <span 
+                                    <span
                                         class="text-xs font-semibold rounded-full w-6 h-6 flex items-center justify-center transition-colors"
                                         :class="[
-                                            day.isToday 
-                                                ? 'bg-blue-900 text-white dark:bg-blue-600' 
+                                            day.isToday
+                                                ? 'bg-blue-900 text-white dark:bg-blue-600'
                                                 : isWeekend(day.date)
                                                     ? 'text-red-600 dark:text-red-400'
                                                     : 'text-slate-700 dark:text-slate-300',
                                             day.isCurrentMonth ? '' : 'opacity-50'
-                                        ]"
-                                    >
+                                        ]">
                                         {{ day.date.getDate() }}
                                     </span>
                                     <!-- Indicator if has bookings -->
-                                    <span v-if="day.bookings.length > 0" class="text-[10px] font-medium text-blue-900 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded-sm sm:hidden">
+                                    <span v-if="day.bookings.length > 0"
+                                        class="text-[10px] font-medium text-blue-900 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded-sm sm:hidden">
                                         {{ day.bookings.length }}
                                     </span>
                                 </div>
 
                                 <!-- Bookings List (desktop view) -->
                                 <div class="flex-1 space-y-1 overflow-y-hidden hidden sm:block">
-                                    <div 
-                                        v-for="booking in day.bookings.slice(0, 2)" 
-                                        :key="booking.id"
+                                    <div v-for="booking in day.bookings.slice(0, 2)" :key="booking.id"
                                         class="px-1.5 py-0.5 text-[10px] rounded-md border truncate font-medium transition-colors"
                                         :class="isPastBooking(booking.start_date, booking.finish_hour)
                                             ? 'bg-slate-100/70 border-slate-200/60 text-slate-400 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-500 line-through'
-                                            : 'bg-indigo-50 border-indigo-100 text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-900/40 dark:text-indigo-300'"
-                                    >
+                                            : 'bg-indigo-50 border-indigo-100 text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-900/40 dark:text-indigo-300'">
                                         {{ booking.start_hour.substring(0, 5) }} - {{ booking.title }}
                                     </div>
-                                    <div 
-                                        v-if="day.bookings.length > 2" 
-                                        class="text-[9px] font-semibold text-slate-500 dark:text-slate-400 pl-1.5"
-                                    >
+                                    <div v-if="day.bookings.length > 2"
+                                        class="text-[9px] font-semibold text-slate-500 dark:text-slate-400 pl-1.5">
                                         +{{ day.bookings.length - 2 }} lainnya
                                     </div>
                                 </div>
@@ -413,60 +466,49 @@ return true;
                     <CardContent class="p-6">
                         <div v-if="agendaBookings.length === 0" class="py-16 text-center">
                             <CalendarIcon class="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada agenda rapat</p>
-                            <p class="text-xs text-muted-foreground mt-1">Jadwal sewa ruangan rapat kosong untuk filter terpilih.</p>
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada agenda rapat
+                            </p>
+                            <p class="text-xs text-muted-foreground mt-1">Jadwal sewa ruangan rapat kosong untuk filter
+                                terpilih.</p>
                         </div>
 
-                        <div v-else class="relative border-l border-slate-200 dark:border-slate-800 ml-4 pl-6 space-y-8 py-2">
-                            <div 
-                                v-for="booking in agendaBookings" 
-                                :key="booking.id"
-                                class="relative group"
-                            >
+                        <div v-else
+                            class="relative border-l border-slate-200 dark:border-slate-800 ml-4 pl-6 space-y-8 py-2">
+                            <div v-for="booking in agendaBookings" :key="booking.id" class="relative group">
                                 <!-- Timeline bullet -->
-                                <div 
-                                    class="absolute -left-[31px] top-1.5 w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center transition-colors"
+                                <div class="absolute -left-[31px] top-1.5 w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center transition-colors"
                                     :class="isPastBooking(booking.start_date, booking.finish_hour)
                                         ? 'bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-900 dark:border-slate-800'
-                                        : 'bg-blue-50 border-blue-900 text-blue-900 dark:bg-blue-950 dark:border-blue-500 dark:text-blue-400'"
-                                >
+                                        : 'bg-blue-50 border-blue-900 text-blue-900 dark:bg-blue-950 dark:border-blue-500 dark:text-blue-400'">
                                     <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
                                 </div>
 
                                 <!-- Agenda Card -->
-                                <div 
-                                    class="bg-white dark:bg-slate-900 border rounded-xl p-4 transition-all duration-200 hover:shadow-xs group-hover:border-slate-300 dark:group-hover:border-slate-700"
-                                    :class="isPastBooking(booking.start_date, booking.finish_hour) 
-                                        ? 'border-slate-100 dark:border-slate-800 opacity-60' 
-                                        : 'border-slate-200 dark:border-slate-800'"
-                                >
+                                <div class="bg-white dark:bg-slate-900 border rounded-xl p-4 transition-all duration-200 hover:shadow-xs group-hover:border-slate-300 dark:group-hover:border-slate-700"
+                                    :class="isPastBooking(booking.start_date, booking.finish_hour)
+                                        ? 'border-slate-100 dark:border-slate-800 opacity-60'
+                                        : 'border-slate-200 dark:border-slate-800'">
                                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div class="space-y-1">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <h3 
-                                                    class="text-sm font-bold text-slate-900 dark:text-white"
-                                                    :class="isPastBooking(booking.start_date, booking.finish_hour) ? 'line-through text-slate-400' : ''"
-                                                >
+                                                <h3 class="text-sm font-bold text-slate-900 dark:text-white"
+                                                    :class="isPastBooking(booking.start_date, booking.finish_hour) ? 'line-through text-slate-400' : ''">
                                                     {{ booking.title }}
                                                 </h3>
-                                                <Badge 
-                                                    v-if="isPastBooking(booking.start_date, booking.finish_hour)"
-                                                    variant="outline" 
-                                                    class="text-[9px] py-0 px-1.5 text-slate-400 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700"
-                                                >
+                                                <Badge v-if="isPastBooking(booking.start_date, booking.finish_hour)"
+                                                    variant="outline"
+                                                    class="text-[9px] py-0 px-1.5 text-slate-400 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                                                     Selesai
                                                 </Badge>
-                                                <Badge 
-                                                    v-else
-                                                    variant="default"
-                                                    class="text-[9px] py-0 px-1.5 bg-blue-100 hover:bg-blue-100 text-blue-900 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50"
-                                                >
+                                                <Badge v-else variant="default"
+                                                    class="text-[9px] py-0 px-1.5 bg-blue-100 hover:bg-blue-100 text-blue-900 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50">
                                                     Mendatang
                                                 </Badge>
                                             </div>
-                                            
+
                                             <!-- Room name / floor -->
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                                                 <Building2 class="h-3.5 w-3.5 text-slate-400" />
                                                 <span>{{ booking.room.name }}</span>
                                             </div>
@@ -475,20 +517,27 @@ return true;
                                             <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                                                 <Users class="h-3.5 w-3.5" />
                                                 <span>Pemohon: {{ booking.requester.name }}</span>
-                                                <span v-if="booking.requester.org" class="text-slate-300 dark:text-slate-700">|</span>
-                                                <span v-if="booking.requester.org" class="font-medium text-slate-700 dark:text-slate-300">{{ booking.requester.org }}</span>
+                                                <span v-if="booking.requester.org"
+                                                    class="text-slate-300 dark:text-slate-700">|</span>
+                                                <span v-if="booking.requester.org"
+                                                    class="font-medium text-slate-700 dark:text-slate-300">{{
+                                                    booking.requester.org }}</span>
                                             </div>
                                         </div>
 
                                         <!-- Date / Time panel -->
-                                        <div class="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-3 md:pt-0 md:pl-6 shrink-0 gap-2">
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
+                                        <div
+                                            class="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-3 md:pt-0 md:pl-6 shrink-0 gap-2">
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
                                                 <CalendarIcon class="h-4 w-4 text-slate-400" />
                                                 <span>{{ formatDateLong(booking.start_date) }}</span>
                                             </div>
-                                            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
                                                 <Clock class="h-4 w-4 text-slate-400" />
-                                                <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour) }}</span>
+                                                <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour)
+                                                    }}</span>
                                             </div>
                                         </div>
                                     </div>
