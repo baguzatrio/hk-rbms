@@ -10,10 +10,31 @@ use Inertia\Response;
 
 class RoomController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 10);
+
+        if (!in_array($perPage, [10, 20, 30])) {
+            $perPage = 10;
+        }
+
+        $rooms = Room::latest()
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('floor', 'like', "%{$search}%");
+                });
+            })
+            ->paginate($perPage)
+            ->withQueryString();
+
         return Inertia::render('Admin/Rooms/Index', [
-            'rooms' => Room::latest()->paginate(10)
+            'rooms' => $rooms,
+            'filters' => [
+                'search' => $search,
+                'per_page' => (int) $perPage,
+            ],
         ]);
     }
 
@@ -30,7 +51,6 @@ class RoomController extends Controller
             'floor'       => 'required|string|max:255',
             'capacity'    => 'required|integer|min:1',
             'description' => 'nullable|string',
-            'facilities'  => 'nullable|array',
             'is_active'   => 'required|boolean',
             'photo_path'  => 'nullable|string',
         ]);
@@ -63,7 +83,6 @@ class RoomController extends Controller
             'floor'       => 'required|string|max:255',
             'capacity'    => 'required|integer|min:1',
             'description' => 'nullable|string',
-            'facilities'  => 'nullable|array',
             'is_active'   => 'required|boolean',
             'photo_path'  => 'nullable|string',
         ]);

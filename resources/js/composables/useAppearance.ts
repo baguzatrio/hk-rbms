@@ -15,7 +15,14 @@ export function updateTheme(value: Appearance): void {
         return;
     }
 
-    document.documentElement.classList.remove('dark');
+    if (value === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else if (value === 'light') {
+        document.documentElement.classList.remove('dark');
+    } else if (value === 'system') {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', isDark);
+    }
 }
 
 const setCookie = (name: string, value: string, days = 365) => {

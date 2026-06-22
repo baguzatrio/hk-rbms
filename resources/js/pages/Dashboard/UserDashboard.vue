@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { Calendar, CalendarPlus, Clock, MapPin, CheckCircle, HelpCircle, XCircle } from 'lucide-vue-next';
+import { Calendar, CalendarPlus, Clock, MapPin } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

@@ -15,7 +15,6 @@ return new class extends Migration
             $table->string('floor');
             $table->smallInteger('capacity');
             $table->text('description')->nullable();
-            $table->json('facilities')->nullable();
             $table->boolean('is_active')->default(true);
             $table->string('photo_path')->nullable();
             $table->timestamps();

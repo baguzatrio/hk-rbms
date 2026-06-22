@@ -12,11 +12,10 @@ class Room extends Model
 
     protected $fillable = [
         'name', 'slug', 'floor', 'capacity',
-        'description', 'facilities', 'is_active', 'photo_path',
+        'description', 'is_active', 'photo_path',
     ];
 
     protected $casts = [
-        'facilities' => 'array',
         'is_active'  => 'boolean',
     ];
 
