@@ -54,6 +54,7 @@ const formatTimeRange = (start: string, finish: string) => {
 </script>
 
 <template>
+
     <Head title="Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
@@ -80,7 +81,7 @@ const formatTimeRange = (start: string, finish: string) => {
 
             <div class="grid gap-6 md:grid-cols-2">
                 <!-- Today's Schedule -->
-                <Card class="border-slate-100 dark:border-slate-800">
+                <Card class="border-slate-100 dark:border-slate-800 min-h-[500px]">
                     <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50">
                         <div class="flex items-center gap-2 text-blue-900 dark:text-blue-400">
                             <Calendar class="h-5 w-5" />
@@ -95,8 +96,10 @@ const formatTimeRange = (start: string, finish: string) => {
                             Tidak ada rapat yang terjadwal hari ini.
                         </div>
                         <div v-else class="divide-y divide-slate-100 dark:divide-slate-800/50">
-                            <div v-for="meeting in todaySchedule" :key="meeting.id" class="py-3 first:pt-0 last:pb-0 flex items-start gap-4">
-                                <div class="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-lg text-blue-900 dark:text-blue-400">
+                            <div v-for="meeting in todaySchedule" :key="meeting.id"
+                                class="py-3 first:pt-0 last:pb-0 flex items-start gap-4">
+                                <div
+                                    class="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-lg text-blue-900 dark:text-blue-400">
                                     <Clock class="h-4 w-4" />
                                 </div>
                                 <div class="flex-1 min-w-0">
@@ -108,7 +111,8 @@ const formatTimeRange = (start: string, finish: string) => {
                                             <MapPin class="h-3 w-3" />
                                             {{ meeting.room?.name }} ({{ meeting.room?.floor }})
                                         </span>
-                                        <span class="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                                        <span
+                                            class="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
                                             {{ formatTimeRange(meeting.start_hour, meeting.finish_hour) }}
                                         </span>
                                     </div>
@@ -119,7 +123,7 @@ const formatTimeRange = (start: string, finish: string) => {
                 </Card>
 
                 <!-- My Bookings -->
-                <Card class="border-slate-100 dark:border-slate-800">
+                <Card class="border-slate-100 dark:border-slate-800 min-h-[500px]">
                     <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50">
                         <div class="flex items-center gap-2 text-blue-900 dark:text-blue-400">
                             <Clock class="h-5 w-5" />
@@ -134,7 +138,8 @@ const formatTimeRange = (start: string, finish: string) => {
                             Anda belum pernah membuat reservasi ruangan.
                         </div>
                         <div v-else class="divide-y divide-slate-100 dark:divide-slate-800/50">
-                            <div v-for="booking in myBookings" :key="booking.id" class="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
+                            <div v-for="booking in myBookings" :key="booking.id"
+                                class="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">
                                         {{ booking.title }}
@@ -154,7 +159,8 @@ const formatTimeRange = (start: string, finish: string) => {
                                     </div>
                                 </div>
                                 <div>
-                                    <Badge :variant="getStatusBadge(booking.status).variant" :class="getStatusBadge(booking.status).class">
+                                    <Badge :variant="getStatusBadge(booking.status).variant"
+                                        :class="getStatusBadge(booking.status).class">
                                         {{ getStatusBadge(booking.status).label }}
                                     </Badge>
                                 </div>

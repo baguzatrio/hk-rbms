@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { 
-    Home, 
-    LayoutGrid, 
-    CalendarPlus, 
-    CalendarDays, 
-    ClipboardCheck, 
-    Building2, 
-    Users, 
-    Building, 
-    History 
+import {
+    Home,
+    LayoutGrid,
+    CalendarPlus,
+    CalendarDays,
+    ClipboardCheck,
+    Building2,
+    Users,
+    Building,
+    History
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -38,9 +38,19 @@ const pendingCount = computed(() => user.value?.pendingCount || 0);
 
 const userMenu: NavItem[] = [
     {
+        isHeader: true,
+        title: 'Platform',
+        href: '#',
+    },
+    {
         title: 'Home',
         href: dashboard(),
         icon: Home,
+    },
+    {
+        isHeader: true,
+        title: 'Booking',
+        href: '#',
     },
     {
         title: 'Booking Ruangan',
@@ -56,13 +66,38 @@ const userMenu: NavItem[] = [
 
 const adminMenu = computed<NavItem[]>(() => [
     {
+        isHeader: true,
+        title: 'Platform',
+        href: '#',
+    },
+    {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
     },
     {
-        isDivider: true,
-        title: 'div-1',
+        isHeader: true,
+        title: 'Master Data',
+        href: '#',
+    },
+    {
+        title: 'Room',
+        href: admin.rooms.index(),
+        icon: Building2,
+    },
+    {
+        title: 'User',
+        href: admin.users.index(),
+        icon: Users,
+    },
+    {
+        title: 'Organization',
+        href: admin.organizations.index(),
+        icon: Building,
+    },
+    {
+        isHeader: true,
+        title: 'Booking',
         href: '#',
     },
     {
@@ -70,26 +105,6 @@ const adminMenu = computed<NavItem[]>(() => [
         href: admin.bookings.index(),
         icon: ClipboardCheck,
         badge: pendingCount.value,
-    },
-    {
-        title: 'Room Management',
-        href: admin.rooms.index(),
-        icon: Building2,
-    },
-    {
-        title: 'User Management',
-        href: admin.users.index(),
-        icon: Users,
-    },
-    {
-        title: 'Organization Mgmt',
-        href: admin.organizations.index(),
-        icon: Building,
-    },
-    {
-        isDivider: true,
-        title: 'div-2',
-        href: '#',
     },
     {
         title: 'Jadwal Rapat',

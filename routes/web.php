@@ -51,6 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // User Management
         Route::resource('users',         Admin\UserController::class);
+        Route::get('/users/{user}/bookings', [Admin\UserController::class, 'bookings'])
+             ->name('users.bookings');
         Route::patch('/users/{user}/reset-password', [Admin\UserController::class, 'resetPassword'])
              ->name('users.reset-password');
 

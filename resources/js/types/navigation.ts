@@ -13,4 +13,6 @@ export type NavItem = {
     isActive?: boolean;
     badge?: number;
     isDivider?: boolean;
+    isHeader?: boolean;
 };
+

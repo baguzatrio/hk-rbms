@@ -12,10 +12,35 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 10);
+
+        if (!in_array($perPage, [10, 20, 30])) {
+            $perPage = 10;
+        }
+
+        $users = User::with('organization')
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhereHas('organization', function ($qOrg) use ($search) {
+                          $qOrg->where('name', 'like', "%{$search}%");
+                      });
+                });
+            })
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
         return Inertia::render('Admin/Users/Index', [
-            'users' => User::with('organization')->latest()->paginate(10)
+            'users' => $users,
+            'filters' => [
+                'search' => $search,
+                'per_page' => (int) $perPage,
+            ],
         ]);
     }
 
@@ -103,5 +128,26 @@ class UserController extends Controller
         ]);
 
         return back()->with('success', 'Password user berhasil direset.');
+    }
+
+    public function bookings(User $user)
+    {
+        $bookings = $user->bookings()
+            ->with('room')
+            ->latest()
+            ->get()
+            ->map(function ($book) {
+                return [
+                    'id'          => $book->id,
+                    'title'       => $book->title,
+                    'room_name'   => $book->room?->name ?? '-',
+                    'start_date'  => $book->start_date ? $book->start_date->format('Y-m-d') : '-',
+                    'start_hour'  => substr($book->start_hour, 0, 5),
+                    'finish_hour' => substr($book->finish_hour, 0, 5),
+                    'status'      => $book->status,
+                ];
+            });
+
+        return response()->json($bookings);
     }
 }
