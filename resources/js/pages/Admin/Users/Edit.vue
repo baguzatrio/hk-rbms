@@ -112,13 +112,15 @@ const handleResetPassword = () => {
 </script>
 
 <template>
+
     <Head title="Edit Pengguna" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6 max-w-4xl mx-auto">
             <!-- Header Section -->
             <div class="flex items-center gap-4">
-                <Button as-child variant="outline" size="icon" class="h-8 w-8 cursor-pointer rounded-lg border-slate-200 dark:border-slate-800">
+                <Button as-child variant="outline" size="icon"
+                    class="h-8 w-8 cursor-pointer rounded-lg border-slate-200 dark:border-slate-800">
                     <Link href="/admin/users">
                         <ArrowLeft class="h-4 w-4 text-slate-500" />
                     </Link>
@@ -145,40 +147,24 @@ const handleResetPassword = () => {
                             <!-- Name -->
                             <div class="grid gap-2">
                                 <Label for="name">Nama Lengkap</Label>
-                                <Input
-                                    id="name"
-                                    v-model="form.name"
-                                    type="text"
-                                    required
-                                    placeholder="Contoh: Budi Santoso"
-                                    class="w-full"
-                                />
+                                <Input id="name" v-model="form.name" type="text" required
+                                    placeholder="Contoh: Budi Santoso" class="w-full" />
                                 <InputError :message="form.errors.name" />
                             </div>
 
                             <!-- Email -->
                             <div class="grid gap-2">
                                 <Label for="email">Alamat Email</Label>
-                                <Input
-                                    id="email"
-                                    v-model="form.email"
-                                    type="email"
-                                    required
-                                    placeholder="Contoh: budi@company.com"
-                                    class="w-full"
-                                />
+                                <Input id="email" v-model="form.email" type="email" required
+                                    placeholder="Contoh: budi@company.com" class="w-full" />
                                 <InputError :message="form.errors.email" />
                             </div>
 
                             <!-- Role Dropdown -->
                             <div class="grid gap-2">
                                 <Label for="role">Peran Akses (Role)</Label>
-                                <select
-                                    id="role"
-                                    v-model="form.role"
-                                    required
-                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 cursor-pointer"
-                                >
+                                <select id="role" v-model="form.role" required
+                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 cursor-pointer">
                                     <option value="user">User Biasa (Karyawan)</option>
                                     <option value="admin">Administrator (Admin)</option>
                                 </select>
@@ -187,31 +173,28 @@ const handleResetPassword = () => {
 
                             <!-- Organization Dropdown -->
                             <div class="grid gap-2">
-                                <Label>Divisi / Organisasi</Label>
-                                <SearchableSelect
-                                    v-model="form.organization_id"
-                                    :options="orgOptions"
+                                <Label>Divisi</Label>
+                                <SearchableSelect v-model="form.organization_id" :options="orgOptions"
                                     placeholder="Pilih Divisi Karyawan..."
                                     searchPlaceholder="Cari divisi berdasarkan nama atau singkatan..."
-                                    clearText="Tanpa Divisi (None)"
-                                />
+                                    clearText="Tanpa Divisi (None)" />
                                 <InputError :message="form.errors.organization_id" />
                             </div>
                         </div>
 
                         <!-- Reset Password Card Shortcut -->
                         <div class="border-t border-slate-100 dark:border-slate-800/80 pt-6 mt-6">
-                            <div class="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div
+                                class="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div class="space-y-0.5">
-                                    <h4 class="font-bold text-slate-900 dark:text-white text-sm">Pengaturan Kata Sandi</h4>
-                                    <p class="text-xs text-muted-foreground">Ubah kata sandi pengguna ini secara langsung menggunakan token keamanan.</p>
+                                    <h4 class="font-bold text-slate-900 dark:text-white text-sm">Pengaturan Kata Sandi
+                                    </h4>
+                                    <p class="text-xs text-muted-foreground">Ubah kata sandi pengguna ini secara
+                                        langsung menggunakan token keamanan.</p>
                                 </div>
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
+                                <Button type="button" variant="outline"
                                     class="text-xs gap-1.5 border-slate-200 dark:border-slate-800 cursor-pointer text-slate-700 hover:text-slate-905 dark:text-slate-300 shrink-0"
-                                    @click="handleResetPassword"
-                                >
+                                    @click="handleResetPassword">
                                     <KeyRound class="h-3.5 w-3.5 text-slate-400" />
                                     Reset Kata Sandi
                                 </Button>
@@ -219,15 +202,13 @@ const handleResetPassword = () => {
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex items-center justify-end gap-3 border-t border-slate-50 dark:border-slate-800/60 pt-4 mt-6">
+                        <div
+                            class="flex items-center justify-end gap-3 border-t border-slate-50 dark:border-slate-800/60 pt-4 mt-6">
                             <Button as-child variant="ghost" class="cursor-pointer">
                                 <Link href="/admin/users">Batal</Link>
                             </Button>
-                            <Button 
-                                type="submit" 
-                                :disabled="form.processing"
-                                class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs"
-                            >
+                            <Button type="submit" :disabled="form.processing"
+                                class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs">
                                 <Save class="h-4 w-4" />
                                 <span>{{ form.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
                             </Button>
