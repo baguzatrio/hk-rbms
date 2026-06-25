@@ -71,17 +71,13 @@ const submit = () => {
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                         Tambah Pengguna Baru
                     </h1>
-                    <p class="text-sm text-muted-foreground mt-0.5">
-                        Daftarkan karyawan baru beserta peran akses dan divisinya.
-                    </p>
                 </div>
             </div>
 
             <!-- Form Card -->
-            <Card class="border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Informasi Akun</CardTitle>
-                    <CardDescription>Lengkapi data profil dan otentikasi pengguna di bawah ini.</CardDescription>
+                    <CardTitle class="text-base font-bold">Form Tambah Data Pengguna Baru</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">
@@ -89,16 +85,16 @@ const submit = () => {
                             <!-- Name -->
                             <div class="grid gap-2">
                                 <Label for="name">Nama Lengkap</Label>
-                                <Input id="name" v-model="form.name" type="text" required
-                                    placeholder="Contoh: Budi Santoso" class="w-full" />
+                                <Input id="name" v-model="form.name" type="text" required placeholder="Nama Lengkap...."
+                                    class="w-full" />
                                 <InputError :message="form.errors.name" />
                             </div>
 
                             <!-- Email -->
                             <div class="grid gap-2">
                                 <Label for="email">Alamat Email</Label>
-                                <Input id="email" v-model="form.email" type="email" required
-                                    placeholder="Contoh: budi@company.com" class="w-full" />
+                                <Input id="email" v-model="form.email" type="email" required placeholder="Email..."
+                                    class="w-full" />
                                 <InputError :message="form.errors.email" />
                             </div>
 
@@ -115,8 +111,8 @@ const submit = () => {
                                 <Label for="role">Peran Akses (Role)</Label>
                                 <select id="role" v-model="form.role" required
                                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 cursor-pointer">
-                                    <option value="user">User Biasa (Karyawan)</option>
-                                    <option value="admin">Administrator (Admin)</option>
+                                    <option value="user">User</option>
+                                    <option value="admin">Administrator</option>
                                 </select>
                                 <InputError :message="form.errors.role" />
                             </div>
@@ -125,7 +121,7 @@ const submit = () => {
                             <div class="grid gap-2 md:col-span-2">
                                 <Label>Divisi</Label>
                                 <SearchableSelect v-model="form.organization_id" :options="orgOptions"
-                                    placeholder="Pilih Divisi Karyawan..."
+                                    placeholder="Pilih Divisi..."
                                     searchPlaceholder="Cari divisi berdasarkan nama atau singkatan..."
                                     clearText="Tanpa Divisi (None)" />
                                 <InputError :message="form.errors.organization_id" />

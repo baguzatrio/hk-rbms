@@ -255,6 +255,18 @@ const translateStatus = (status: string) => {
         default: return 'Pending';
     }
 };
+
+const cleanLabel = (label: string) => {
+    if (label.includes('Previous') || label.includes('Sebelumnya') || label.toLowerCase().includes('prev')) {
+        return '&laquo;';
+    }
+
+    if (label.includes('Next') || label.includes('Berikutnya') || label.toLowerCase().includes('next')) {
+        return '&raquo;';
+    }
+
+    return label;
+};
 </script>
 
 <template>
@@ -269,9 +281,6 @@ const translateStatus = (status: string) => {
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                         Manajemen Pengguna
                     </h1>
-                    <p class="text-sm text-muted-foreground mt-1">
-                        Kelola data akun karyawan, peran akses, divisi, dan atur ulang kata sandi.
-                    </p>
                 </div>
                 <Button as-child
                     class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 shadow-xs cursor-pointer">
@@ -288,26 +297,43 @@ const translateStatus = (status: string) => {
                 <!-- Control Bar (Attached to Table) -->
                 <div
                     class="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <!-- Search Input -->
-                    <div class="relative w-full max-w-sm">
-                        <span
-                            class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-                            <Search class="h-4 w-4" />
-                        </span>
-                        <input v-model="searchQuery" type="text" placeholder="Cari nama, email, atau divisi..."
-                            class="w-full pl-9 pr-4 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors" />
+                    <div class="flex items-center gap-4">
+                        <!-- Per Page Selector -->
+                        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span>Tampilkan:</span>
+                            <select v-model="perPage"
+                                class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors cursor-pointer">
+                                <option :value="10">10 Data</option>
+                                <option :value="20">20 Data</option>
+                                <option :value="30">30 Data</option>
+                            </select>
+                        </div>
+
+                        <!-- Search Input -->
+                        <div class="relative w-full max-w-[200px]">
+                            <span
+                                class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+                                <Search class="h-3.5 w-3.5" />
+                            </span>
+                            <input v-model="searchQuery" type="text" placeholder="Cari..."
+                                class="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors" />
+                        </div>
                     </div>
 
-                    <!-- Per Page Selector -->
-                    <div
-                        class="flex items-center gap-2 self-end sm:self-auto text-xs text-slate-500 dark:text-slate-400">
-                        <span>Tampilkan:</span>
-                        <select v-model="perPage"
-                            class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors cursor-pointer">
-                            <option :value="10">10 Data</option>
-                            <option :value="20">20 Data</option>
-                            <option :value="30">30 Data</option>
-                        </select>
+                    <!-- Pagination Navigation -->
+                    <div v-if="users.links.length > 0" class="flex items-center gap-1">
+                        <template v-for="(link, k) in users.links" :key="k">
+                            <Link v-if="link.url" :href="link.url"
+                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
+                                :class="{
+                                    'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
+                                    'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
+                                }">
+                                <span v-html="cleanLabel(link.label)"></span>
+                            </Link>
+                            <span v-else v-html="cleanLabel(link.label)"
+                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
+                        </template>
                     </div>
                 </div>
 
@@ -390,21 +416,7 @@ const translateStatus = (status: string) => {
                 </div>
             </div>
 
-            <!-- Laravel Pagination Links -->
-            <div v-if="users.links.length > 3" class="flex justify-center mt-6 gap-1 flex-wrap">
-                <template v-for="(link, k) in users.links" :key="k">
-                    <Link v-if="link.url" :href="link.url"
-                        class="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
-                        :class="{
-                            'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
-                            'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
-                        }">
-                        <span v-html="link.label"></span>
-                    </Link>
-                    <span v-else v-html="link.label"
-                        class="px-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700 cursor-not-allowed" />
-                </template>
-            </div>
+
         </div>
 
         <!-- Detail User & Bookings Modal Popup -->

@@ -56,19 +56,15 @@ const submit = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Edit Divisi
+                        Edit Data Divisi {{ props.organization.name }}
                     </h1>
-                    <p class="text-sm text-muted-foreground mt-0.5">
-                        Ubah detail informasi divisi "{{ props.organization.name }}".
-                    </p>
                 </div>
             </div>
 
             <!-- Form Card -->
-            <Card class="border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Informasi Divisi</CardTitle>
-                    <CardDescription>Ubah detail nama dan singkatan departemen di bawah ini.</CardDescription>
+                    <CardTitle class="text-base font-bold">Form Edit Data Divisi</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">

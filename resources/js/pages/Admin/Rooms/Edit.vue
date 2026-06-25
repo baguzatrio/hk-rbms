@@ -64,19 +64,15 @@ const submit = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Edit Ruangan: {{ room.name }}
+                        Edit Data Ruangan {{ room.name }}
                     </h1>
-                    <p class="text-sm text-muted-foreground mt-0.5">
-                        Ubah spesifikasi, fasilitas, atau status operasional ruangan.
-                    </p>
                 </div>
             </div>
 
             <!-- Form Card -->
-            <Card class="border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Informasi Ruangan</CardTitle>
-                    <CardDescription>Perbarui data spesifikasi ruangan rapat di bawah ini.</CardDescription>
+                    <CardTitle class="text-base font-bold">Form Edit Data Ruangan</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">
@@ -84,16 +80,16 @@ const submit = () => {
                             <!-- Room Name -->
                             <div class="grid gap-2">
                                 <Label for="name">Nama Ruangan</Label>
-                                <Input id="name" v-model="form.name" type="text" required
-                                    placeholder="Contoh: Ruang Meeting Serbaguna" class="w-full" />
+                                <Input id="name" v-model="form.name" type="text" required placeholder="Nama..."
+                                    class="w-full" />
                                 <InputError :message="form.errors.name" />
                             </div>
 
                             <!-- Floor -->
                             <div class="grid gap-2">
                                 <Label for="floor">Lantai</Label>
-                                <Input id="floor" v-model="form.floor" type="text" required
-                                    placeholder="Contoh: 1, 2, atau Basement" class="w-full" />
+                                <Input id="floor" v-model="form.floor" type="text" required placeholder="Lantai..."
+                                    class="w-full" />
                                 <InputError :message="form.errors.floor" />
                             </div>
 
@@ -107,7 +103,7 @@ const submit = () => {
 
                             <!-- Status Aktif (Switch/Toggle) -->
                             <div class="grid gap-2">
-                                <Label>Status Ketersediaan</Label>
+                                <Label>Status Ruangan</Label>
                                 <div class="flex items-center gap-3 mt-2">
                                     <button type="button"
                                         class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
@@ -128,8 +124,7 @@ const submit = () => {
                         <!-- Description -->
                         <div class="grid gap-2">
                             <Label for="description">Deskripsi Ruangan</Label>
-                            <textarea id="description" v-model="form.description" rows="3"
-                                placeholder="Jelaskan deskripsi atau catatan khusus untuk ruangan ini..."
+                            <textarea id="description" v-model="form.description" rows="3" placeholder="..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
                             <InputError :message="form.errors.description" />
                         </div>

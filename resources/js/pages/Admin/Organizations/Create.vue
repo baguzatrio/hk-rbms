@@ -46,19 +46,15 @@ const submit = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Tambah Divisi Baru
+                        Tambah Data Divisi Baru
                     </h1>
-                    <p class="text-sm text-muted-foreground mt-0.5">
-                        Daftarkan departemen atau divisi baru ke dalam sistem.
-                    </p>
                 </div>
             </div>
 
             <!-- Form Card -->
-            <Card class="border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Informasi Divisi</CardTitle>
-                    <CardDescription>Masukkan detail nama dan singkatan divisi baru di bawah ini.</CardDescription>
+                    <CardTitle class="text-base font-bold">Form Tambah Data Divisi Baru</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">
