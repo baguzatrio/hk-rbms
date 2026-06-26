@@ -1,21 +1,16 @@
 <script setup lang="ts">
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import {
-    Grid,
-    List,
     Plus,
     Building2,
-    Users,
     Edit2,
     Trash2,
-    Eye,
     Search
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { ref, onMounted, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 

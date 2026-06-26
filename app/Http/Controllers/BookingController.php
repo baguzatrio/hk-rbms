@@ -53,6 +53,23 @@ class BookingController extends Controller
             'participants'=> 'nullable|string|max:2000',
         ]);
 
+        // Cek hari libur (Sabtu & Minggu)
+        $startDate = \Carbon\Carbon::parse($validated['start_date']);
+        if ($startDate->isWeekend()) {
+            return back()->withErrors([
+                'start_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
+            ])->withInput();
+        }
+
+        if (!empty($validated['end_date'])) {
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+            if ($endDate->isWeekend()) {
+                return back()->withErrors([
+                    'end_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
+                ])->withInput();
+            }
+        }
+
         // Cek konflik jadwal
         if (Book::hasConflict(
             $validated['room_id'],
@@ -90,4 +107,35 @@ class BookingController extends Controller
 
         return back()->with('success', 'Booking berhasil dibatalkan.');
     }
+
+    public function show(Book $book)
+    {
+        abort_if($book->requester_id !== Auth::id(), 403);
+
+        $book->load(['room', 'requester.organization']);
+
+        return response()->json([
+            'id'           => $book->id,
+            'title'        => $book->title,
+            'status'       => $book->status,
+            'start_date'   => $book->start_date->format('Y-m-d'),
+            'end_date'     => $book->end_date?->format('Y-m-d'),
+            'start_hour'   => substr($book->start_hour, 0, 5),
+            'finish_hour'  => substr($book->finish_hour, 0, 5),
+            'notes'        => $book->notes,
+            'remarks'      => $book->remarks,
+            'pic_name'     => $book->pic_name,
+            'participants' => $book->participants,
+            'room'         => [
+                'name'     => $book->room->name,
+                'floor'    => $book->room->floor,
+                'capacity' => $book->room->capacity,
+            ],
+            'requester'    => [
+                'name' => $book->requester->name,
+                'org'  => $book->requester->organization?->name,
+            ],
+        ]);
+    }
 }
+

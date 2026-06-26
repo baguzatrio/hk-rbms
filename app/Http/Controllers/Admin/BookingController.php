@@ -141,4 +141,102 @@ class BookingController extends Controller
             ]);
         }
     }
+
+    public function show(Book $book)
+    {
+        $book->load(['room', 'requester.organization', 'approver']);
+
+        return response()->json([
+            'id'           => $book->id,
+            'title'        => $book->title,
+            'status'       => $book->status,
+            'start_date'   => $book->start_date->format('Y-m-d'),
+            'end_date'     => $book->end_date?->format('Y-m-d'),
+            'start_hour'   => substr($book->start_hour, 0, 5),
+            'finish_hour'  => substr($book->finish_hour, 0, 5),
+            'notes'        => $book->notes,
+            'remarks'      => $book->remarks,
+            'pic_name'     => $book->pic_name,
+            'participants' => $book->participants,
+            'room'         => [
+                'name'     => $book->room->name,
+                'floor'    => $book->room->floor,
+                'capacity' => $book->room->capacity,
+            ],
+            'requester'    => [
+                'name' => $book->requester->name,
+                'org'  => $book->requester->organization?->name,
+            ],
+            'approver'     => $book->approver ? [
+                'name' => $book->approver->name,
+            ] : null,
+            'approved_at'  => $book->approved_at?->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Admin/Bookings/Create', [
+            'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'room_id'    => 'required|exists:rooms,id',
+            'title'      => 'required|string|max:255',
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date'   => 'nullable|date|after_or_equal:start_date',
+            'start_hour' => 'required|date_format:H:i',
+            'finish_hour'=> 'required|date_format:H:i|after:start_hour',
+            'notes'      => 'nullable|string|max:1000',
+            'pic_name'   => 'nullable|string|max:255',
+            'participants'=> 'nullable|string|max:2000',
+        ]);
+
+        // Cek hari libur (Sabtu & Minggu)
+        $startDate = \Carbon\Carbon::parse($validated['start_date']);
+        if ($startDate->isWeekend()) {
+            return back()->withErrors([
+                'start_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
+            ])->withInput();
+        }
+
+        if (!empty($validated['end_date'])) {
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+            if ($endDate->isWeekend()) {
+                return back()->withErrors([
+                    'end_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
+                ])->withInput();
+            }
+        }
+
+        if (Book::hasConflict(
+            $validated['room_id'],
+            $validated['start_date'],
+            $validated['end_date'] ?? $validated['start_date'],
+            $validated['start_hour'],
+            $validated['finish_hour']
+        )) {
+            return back()->withErrors([
+                'start_date' => 'Ruangan sudah dipesan pada waktu tersebut.'
+            ]);
+        }
+
+        $book = Book::create([
+            ...$validated,
+            'requester_id' => Auth::id(),
+            'status'       => 'approved',
+            'approved_by'  => Auth::id(),
+            'approved_at'  => now(),
+            'end_date'     => $validated['end_date'] ?? $validated['start_date'],
+        ]);
+
+        $this->logAction('create & approve', $book);
+
+        return redirect()->route('admin.bookings.index')
+            ->with('success', 'Reservasi ruangan berhasil dibuat dan disetujui otomatis.');
+    }
 }
+
