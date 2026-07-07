@@ -11,11 +11,11 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $orgClass = 'App\Models\Organization';
-        $tiOrgId = null;
-        $sdmOrgId = null;
+        $ertiOrgId = null;
+        $hcOrgId = null;
         if (class_exists($orgClass)) {
-            $tiOrgId = $orgClass::where('shortname', 'TI')->first()?->id;
-            $sdmOrgId = $orgClass::where('shortname', 'SDM')->first()?->id;
+            $ertiOrgId = $orgClass::where('shortname', 'ERTI')->first()?->id;
+            $hcOrgId = $orgClass::where('shortname', 'HC')->first()?->id;
         }
 
         // Admin user
@@ -25,7 +25,7 @@ class UserSeeder extends Seeder
                 'name' => 'Administrator',
                 'password' => 'password',
                 'role' => 'admin',            // kolom mirror
-                'organization_id' => $tiOrgId,
+                'organization_id' => $ertiOrgId,
                 'email_verified_at' => now(),
             ]
         );
@@ -38,7 +38,7 @@ class UserSeeder extends Seeder
                 'name' => 'Dika',
                 'password' => 'password',
                 'role' => 'user',             // kolom mirror
-                'organization_id' => $sdmOrgId,
+                'organization_id' => $hcOrgId,
                 'email_verified_at' => now(),
             ]
         );

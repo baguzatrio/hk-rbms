@@ -10,10 +10,12 @@ class OrganizationSeeder extends Seeder
     public function run(): void
     {
         $orgs = [
-            ['name' => 'Teknologi Informasi',  'shortname' => 'TI'],
-            ['name' => 'Sumber Daya Manusia',  'shortname' => 'SDM'],
-            ['name' => 'Keuangan & Akuntansi', 'shortname' => 'KEU'],
-            ['name' => 'Operasional',          'shortname' => 'OPS'],
+            ['name' => 'Engineering, Riset, & Teknologi Informasi', 'shortname' => 'ERTI'],
+            ['name' => 'Human Capital', 'shortname' => 'HC'],
+            ['name' => 'Akutansi & Keuangan', 'shortname' => 'AKKU'],
+            ['name' => 'Infrastuktur I', 'shortname' => 'INFRA-I'],
+            ['name' => 'Infrastuktur II', 'shortname' => 'INFRA-II'],
+            ['name' => 'Supply Chain Management', 'shortname' => 'SCM'],
         ];
 
         foreach ($orgs as $org) {
