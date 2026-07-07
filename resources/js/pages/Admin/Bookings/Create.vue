@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, CalendarPlus, Loader2 } from 'lucide-vue-next';
-import { watch } from 'vue';
 import Swal from 'sweetalert2';
-
+import { computed, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ interface Room {
     capacity: number;
 }
 
-defineProps<{
+const props = defineProps<{
     rooms: Room[];
 }>();
 
@@ -35,26 +36,44 @@ const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+
     return `${year}-${month}-${day}`;
 };
 
-// Helper to get the initial date (next Monday if today is a weekend)
+// Helper to get the initial date (next Monday if today is a weekend, or from query param)
 const getInitialDate = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryDate = urlParams.get('date');
+
+    if (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate)) {
+        return queryDate;
+    }
+
     const date = new Date();
     const day = date.getDay(); // 0 = Sunday, 6 = Saturday
+
     if (day === 6) {
         date.setDate(date.getDate() + 2);
     } else if (day === 0) {
         date.setDate(date.getDate() + 1);
     }
+
     return getLocalDateString(date);
 };
 
 const todayStr = getLocalDateString();
 
+const roomOptions = computed(() => {
+    return props.rooms.map(room => ({
+        id: room.id,
+        label: room.name,
+        description: `Lantai ${room.floor}, Kapasitas: ${room.capacity} Orang`
+    }));
+});
+
 // Form fields setup
 const form = useForm({
-    room_id: '',
+    room_id: '' as string | number,
     title: '',
     start_date: getInitialDate(),
     end_date: '',
@@ -66,9 +85,13 @@ const form = useForm({
 });
 
 const isWeekend = (dateStr: string) => {
-    if (!dateStr) return false;
+    if (!dateStr) {
+        return false;
+    }
+
     const date = new Date(dateStr);
     const day = date.getUTCDay();
+
     return day === 0 || day === 6; // 0: Sunday, 6: Saturday
 };
 
@@ -117,6 +140,7 @@ const submit = () => {
 </script>
 
 <template>
+
     <Head title="Tambah Reservasi (Admin)" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
@@ -146,57 +170,57 @@ const submit = () => {
                         <div class="grid gap-6 md:grid-cols-2">
                             <!-- Room Selector -->
                             <div class="grid gap-2">
-                                <Label for="room_id">Pilih Ruangan Rapat</Label>
-                                <select id="room_id" v-model="form.room_id" required
-                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 cursor-pointer">
-                                    <option value="" disabled>Pilih Ruangan...</option>
-                                    <option v-for="room in rooms" :key="room.id" :value="room.id">
-                                        {{ room.name }} (Lantai {{ room.floor }}, Kapasitas: {{ room.capacity }} Orang)
-                                    </option>
-                                </select>
+                                <Label for="room_id">Pilih Ruangan Rapat <span class="text-red-500">*</span></Label>
+                                <SearchableSelect v-model="form.room_id" :options="roomOptions"
+                                    placeholder="Pilih Ruangan..." search-placeholder="Cari nama ruangan..."
+                                    :allow-clear="false" />
                                 <InputError :message="form.errors.room_id" />
                             </div>
 
                             <!-- Title / Agenda Rapat -->
                             <div class="grid gap-2">
-                                <Label for="title">Judul Rapat / Nama Acara</Label>
-                                <Input id="title" v-model="form.title" type="text" required placeholder="Contoh: Rapat Koordinasi Bulanan..."
-                                    class="w-full" />
+                                <Label for="title">Nama Rapat / Agenda <span class="text-red-500">*</span></Label>
+                                <Input id="title" v-model="form.title" type="text"
+                                    placeholder="Nama Kegiatan..." class="w-full" />
                                 <InputError :message="form.errors.title" />
                             </div>
 
                             <!-- Tanggal Mulai -->
                             <div class="grid gap-2">
-                                <Label for="start_date">Tanggal Rapat</Label>
-                                <Input id="start_date" v-model="form.start_date" type="date" :min="todayStr" required class="w-full" />
+                                <Label for="start_date">Tanggal Rapat <span class="text-red-500">*</span></Label>
+                                <Input id="start_date" v-model="form.start_date" type="date" :min="todayStr"
+                                    class="w-full" />
                                 <InputError :message="form.errors.start_date" />
                             </div>
 
                             <!-- Tanggal Selesai (Opsional) -->
                             <div class="grid gap-2">
                                 <Label for="end_date">Tanggal Selesai (Opsional)</Label>
-                                <Input id="end_date" v-model="form.end_date" type="date" :min="form.start_date || todayStr" :placeholder="form.start_date" class="w-full" />
+                                <Input id="end_date" v-model="form.end_date" type="date"
+                                    :min="form.start_date || todayStr" :placeholder="form.start_date" class="w-full" />
                                 <InputError :message="form.errors.end_date" />
                             </div>
 
                             <!-- Jam Mulai -->
                             <div class="grid gap-2">
-                                <Label for="start_hour">Jam Mulai</Label>
-                                <Input id="start_hour" v-model="form.start_hour" type="time" required class="w-full" />
+                                <Label for="start_hour">Jam Mulai <span class="text-red-500">*</span></Label>
+                                <Input id="start_hour" v-model="form.start_hour" type="time" class="w-full" />
                                 <InputError :message="form.errors.start_hour" />
                             </div>
 
                             <!-- Jam Selesai -->
                             <div class="grid gap-2">
-                                <Label for="finish_hour">Jam Selesai</Label>
-                                <Input id="finish_hour" v-model="form.finish_hour" type="time" required class="w-full" />
+                                <Label for="finish_hour">Jam Selesai <span class="text-red-500">*</span></Label>
+                                <Input id="finish_hour" v-model="form.finish_hour" type="time"
+                                    class="w-full" />
                                 <InputError :message="form.errors.finish_hour" />
                             </div>
 
                             <!-- PIC Name -->
                             <div class="grid gap-2">
-                                <Label for="pic_name">Penanggung Jawab (PIC)</Label>
-                                <Input id="pic_name" v-model="form.pic_name" type="text" placeholder="Nama PIC..." class="w-full" />
+                                <Label for="pic_name">Penanggung Jawab (PIC) <span class="text-red-500">*</span></Label>
+                                <Input id="pic_name" v-model="form.pic_name" type="text" placeholder="Nama PIC..."
+                                    class="w-full" />
                                 <InputError :message="form.errors.pic_name" />
                             </div>
                         </div>
@@ -204,21 +228,23 @@ const submit = () => {
                         <!-- Participants -->
                         <div class="grid gap-2">
                             <Label for="participants">Daftar Peserta Rapat</Label>
-                            <textarea id="participants" v-model="form.participants" rows="3" placeholder="Contoh: Budi, Susi, Andi, dll..."
+                            <textarea id="participants" v-model="form.participants" rows="3"
+                                placeholder="Divisi / Nama ..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
                             <InputError :message="form.errors.participants" />
                         </div>
 
                         <!-- Notes / Agenda Rapat -->
                         <div class="grid gap-2">
-                            <Label for="notes">Deskripsi Rapat / Catatan</Label>
-                            <textarea id="notes" v-model="form.notes" rows="3" placeholder="Deskripsikan agenda rapat secara singkat..."
+                            <Label for="notes">Deskripsi Rapat / Catatan (Opsional)</Label>
+                            <textarea id="notes" v-model="form.notes" rows="3" placeholder="Deskripsikan..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
                             <InputError :message="form.errors.notes" />
                         </div>
 
                         <!-- Submit Buttons -->
-                        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                        <div
+                            class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
                             <Button as-child variant="outline" class="cursor-pointer">
                                 <Link href="/admin/bookings">Batal</Link>
                             </Button>
