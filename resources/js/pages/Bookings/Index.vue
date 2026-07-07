@@ -140,6 +140,22 @@ const formatTime = (timeStr: string) => {
     return timeStr.substring(0, 5);
 };
 
+const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) {
+return '';
+}
+
+    const parts = dateStr.split('-');
+
+    if (parts.length !== 3) {
+return dateStr;
+}
+
+    const [year, month, day] = parts;
+
+    return `${day}-${month}-${year}`;
+};
+
 // Modal functions
 const openDetailModal = async (id: number) => {
     isDetailModalOpen.value = true;
@@ -293,7 +309,7 @@ const confirmCancel = (booking: BookingItem) => {
                                 <td class="p-4 text-slate-700 dark:text-slate-300">
                                     <div class="flex items-center gap-1.5 text-xs">
                                         <Calendar class="h-3.5 w-3.5 text-slate-400" />
-                                        <span>{{ booking.start_date }}</span>
+                                        <span>{{ formatDateDMY(booking.start_date) }}</span>
                                     </div>
                                     <div class="flex items-center gap-1.5 text-[11px] mt-0.5 font-medium text-slate-600 dark:text-slate-400">
                                         <Clock class="h-3.5 w-3.5 text-slate-400" />
@@ -377,7 +393,7 @@ const confirmCancel = (booking: BookingItem) => {
                             <div class="space-y-1">
                                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tanggal & Waktu</span>
                                 <p class="font-semibold text-slate-800 dark:text-slate-200">
-                                    {{ activeBooking.start_date }} s.d. {{ activeBooking.end_date || activeBooking.start_date }}
+                                    {{ formatDateDMY(activeBooking.start_date) }} s.d. {{ formatDateDMY(activeBooking.end_date || activeBooking.start_date) }}
                                 </p>
                                 <p class="text-xs text-slate-500 font-semibold">
                                     Jam: {{ activeBooking.start_hour }} - {{ activeBooking.finish_hour }} WIB

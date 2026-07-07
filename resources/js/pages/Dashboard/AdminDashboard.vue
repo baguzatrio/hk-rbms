@@ -45,6 +45,22 @@ const breadcrumbs = [
 const formatTimeRange = (start: string, finish: string) => {
     return `${start.substring(0, 5)} - ${finish.substring(0, 5)}`;
 };
+
+const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) {
+return '';
+}
+
+    const parts = dateStr.split('-');
+
+    if (parts.length !== 3) {
+return dateStr;
+}
+
+    const [year, month, day] = parts;
+
+    return `${day}-${month}-${year}`;
+};
 </script>
 
 <template>
@@ -193,7 +209,7 @@ const formatTimeRange = (start: string, finish: string) => {
                                     <td class="py-3 text-muted-foreground">
                                         <div class="flex items-center gap-1.5 text-xs">
                                             <Calendar class="h-3.5 w-3.5" />
-                                            <span>{{ booking.start_date }}</span>
+                                            <span>{{ formatDateDMY(booking.start_date) }}</span>
                                         </div>
                                         <div class="flex items-center gap-1.5 text-xs mt-0.5 font-medium text-slate-700 dark:text-slate-300">
                                             <Clock class="h-3.5 w-3.5" />

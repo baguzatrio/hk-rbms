@@ -267,6 +267,22 @@ const cleanLabel = (label: string) => {
 
     return label;
 };
+
+const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) {
+return '';
+}
+
+    const parts = dateStr.split('-');
+
+    if (parts.length !== 3) {
+return dateStr;
+}
+
+    const [year, month, day] = parts;
+
+    return `${day}-${month}-${year}`;
+};
 </script>
 
 <template>
@@ -527,7 +543,7 @@ const cleanLabel = (label: string) => {
                                         <td class="p-3 text-slate-600 dark:text-slate-400">
                                             <div class="flex items-center gap-1 text-[10px]">
                                                 <Calendar class="h-3 w-3" />
-                                                <span>{{ book.start_date }}</span>
+                                                <span>{{ formatDateDMY(book.start_date) }}</span>
                                             </div>
                                             <div
                                                 class="flex items-center gap-1 text-[10px] mt-0.5 font-medium text-slate-700 dark:text-slate-300">
