@@ -85,18 +85,22 @@ class Book extends Model
         return static::where('room_id', $roomId)
             ->where('status', 'approved')
             ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('start_date', [$startDate, $endDate])
-                  ->orWhereBetween('end_date', [$startDate, $endDate])
-                  ->orWhere(function ($q2) use ($startDate, $endDate) {
-                      $q2->where('start_date', '<=', $startDate)
-                         ->where('end_date', '>=', $endDate);
-                  });
+                $q->where(function ($q2) use ($startDate, $endDate) {
+                    $q2->whereDate('start_date', '>=', $startDate)
+                       ->whereDate('start_date', '<=', $endDate);
+                })
+                ->orWhere(function ($q2) use ($startDate, $endDate) {
+                    $q2->whereDate('end_date', '>=', $startDate)
+                       ->whereDate('end_date', '<=', $endDate);
+                })
+                ->orWhere(function ($q2) use ($startDate, $endDate) {
+                    $q2->whereDate('start_date', '<=', $startDate)
+                       ->whereDate('end_date', '>=', $endDate);
+                });
             })
             ->where(function ($q) use ($startHour, $finishHour) {
-                $q->where(function ($q2) use ($startHour, $finishHour) {
-                    $q2->where('start_hour', '<', $finishHour)
-                       ->where('finish_hour', '>', $startHour);
-                });
+                $q->where('start_hour', '<', $finishHour)
+                  ->where('finish_hour', '>', $startHour);
             })
             ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
             ->exists();

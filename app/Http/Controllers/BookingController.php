@@ -49,8 +49,19 @@ class BookingController extends Controller
             'start_hour' => 'required|date_format:H:i',
             'finish_hour'=> 'required|date_format:H:i|after:start_hour',
             'notes'      => 'nullable|string|max:1000',
-            'pic_name'   => 'nullable|string|max:255',
+            'pic_name'   => 'required|string|max:255',
             'participants'=> 'nullable|string|max:2000',
+        ], [
+            'room_id.required'         => 'Ruangan rapat wajib dipilih.',
+            'room_id.exists'           => 'Ruangan rapat tidak valid.',
+            'title.required'           => 'Agenda rapat wajib diisi.',
+            'start_date.required'      => 'Tanggal rapat wajib diisi.',
+            'start_date.after_or_equal'=> 'Tanggal rapat tidak boleh sebelum hari ini.',
+            'end_date.after_or_equal'  => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'start_hour.required'      => 'Jam mulai wajib diisi.',
+            'finish_hour.required'     => 'Jam selesai wajib diisi.',
+            'finish_hour.after'        => 'Jam selesai harus setelah jam mulai.',
+            'pic_name.required'        => 'Nama PIC penanggung jawab wajib diisi.',
         ]);
 
         // Cek hari libur (Sabtu & Minggu)

@@ -58,6 +58,20 @@ class BookingController extends Controller
     {
         abort_if(!$book->isPending(), 422, 'Booking sudah diproses.');
 
+        // Cek konflik jadwal
+        if (Book::hasConflict(
+            $book->room_id,
+            $book->start_date->format('Y-m-d'),
+            $book->end_date ? $book->end_date->format('Y-m-d') : $book->start_date->format('Y-m-d'),
+            $book->start_hour,
+            $book->finish_hour,
+            $book->id
+        )) {
+            return back()->withErrors([
+                'error' => "Gagal menyetujui. Ruangan '{$book->room->name}' sudah dipesan pada tanggal dan jam tersebut."
+            ]);
+        }
+
         $book->update([
             'status'      => 'approved',
             'approved_by' => Auth::id(),
@@ -79,8 +93,9 @@ class BookingController extends Controller
         $request->validate(['remarks' => 'required|string|max:500']);
 
         $book->update([
-            'status'  => 'rejected',
-            'remarks' => $request->remarks,
+            'status'      => 'rejected',
+            'approved_by' => Auth::id(),
+            'remarks'     => $request->remarks,
         ]);
 
         Cache::forget('pending_bookings_count');
@@ -94,15 +109,46 @@ class BookingController extends Controller
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:books,id']);
 
-        Book::whereIn('id', $request->ids)
+        $bookings = Book::with('room')
+            ->whereIn('id', $request->ids)
             ->where('status', 'pending')
-            ->update([
+            ->get();
+
+        $approvedCount = 0;
+        $errors = [];
+
+        foreach ($bookings as $book) {
+            if (Book::hasConflict(
+                $book->room_id,
+                $book->start_date->format('Y-m-d'),
+                $book->end_date ? $book->end_date->format('Y-m-d') : $book->start_date->format('Y-m-d'),
+                $book->start_hour,
+                $book->finish_hour,
+                $book->id
+            )) {
+                $errors[] = "Booking '{$book->title}' di Ruang '{$book->room->name}' bentrok dengan jadwal yang sudah disetujui.";
+                continue;
+            }
+
+            $book->update([
                 'status'      => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
+            $this->logAction('approve', $book);
+            $approvedCount++;
+        }
+
         Cache::forget('pending_bookings_count');
+
+        if (count($errors) > 0) {
+            if ($approvedCount > 0) {
+                return back()->with('success', "{$approvedCount} booking berhasil disetujui.")
+                    ->withErrors(['error' => implode("\n", $errors)]);
+            }
+            return back()->withErrors(['error' => implode("\n", $errors)]);
+        }
 
         return back()->with('success', count($request->ids) . ' booking telah disetujui.');
     }
@@ -118,8 +164,9 @@ class BookingController extends Controller
         Book::whereIn('id', $request->ids)
             ->where('status', 'pending')
             ->update([
-                'status'  => 'rejected',
-                'remarks' => $request->remarks,
+                'status'      => 'rejected',
+                'approved_by' => Auth::id(),
+                'remarks'     => $request->remarks,
             ]);
 
         Cache::forget('pending_bookings_count');
@@ -191,8 +238,19 @@ class BookingController extends Controller
             'start_hour' => 'required|date_format:H:i',
             'finish_hour'=> 'required|date_format:H:i|after:start_hour',
             'notes'      => 'nullable|string|max:1000',
-            'pic_name'   => 'nullable|string|max:255',
+            'pic_name'   => 'required|string|max:255',
             'participants'=> 'nullable|string|max:2000',
+        ], [
+            'room_id.required'         => 'Ruangan rapat wajib dipilih.',
+            'room_id.exists'           => 'Ruangan rapat tidak valid.',
+            'title.required'           => 'Agenda rapat wajib diisi.',
+            'start_date.required'      => 'Tanggal rapat wajib diisi.',
+            'start_date.after_or_equal'=> 'Tanggal rapat tidak boleh sebelum hari ini.',
+            'end_date.after_or_equal'  => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'start_hour.required'      => 'Jam mulai wajib diisi.',
+            'finish_hour.required'     => 'Jam selesai wajib diisi.',
+            'finish_hour.after'        => 'Jam selesai harus setelah jam mulai.',
+            'pic_name.required'        => 'Nama PIC penanggung jawab wajib diisi.',
         ]);
 
         // Cek hari libur (Sabtu & Minggu)
