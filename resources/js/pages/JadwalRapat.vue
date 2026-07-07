@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { onClickOutside } from '@vueuse/core';
 import {
     Calendar as CalendarIcon,
@@ -12,7 +12,8 @@ import {
     Building2,
     CalendarDays,
     Search,
-    ChevronDown
+    ChevronDown,
+    X
 } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,37 @@ const viewMode = ref<'calendar' | 'agenda'>('calendar');
 const isRoomDropdownOpen = ref(false);
 const searchQuery = ref('');
 const roomDropdownRef = ref<HTMLElement | null>(null);
+
+const selectedCalendarDate = ref<Date | null>(null);
+const isDateModalOpen = ref(false);
+
+const page = usePage();
+const isAdmin = computed(() => {
+    return (page.props.auth?.user as any)?.role === 'admin';
+});
+
+const selectDate = (date: Date) => {
+    selectedCalendarDate.value = date;
+    isDateModalOpen.value = true;
+};
+
+const selectedDateBookings = computed(() => {
+    if (!selectedCalendarDate.value) {
+        return [];
+    }
+
+    return getBookingsForDate(selectedCalendarDate.value);
+});
+
+const goToCreateBooking = (date: Date) => {
+    const dateStr = formatDateString(date);
+
+    if (isAdmin.value) {
+        router.visit(`/admin/bookings/create?date=${dateStr}`);
+    } else {
+        router.visit(`/bookings/create?date=${dateStr}`);
+    }
+};
 
 onClickOutside(roomDropdownRef, () => {
     isRoomDropdownOpen.value = false;
@@ -209,17 +241,21 @@ const daysInMonth = computed(() => {
     return days;
 });
 
-// Agenda Bookings (chronologically ordered)
+// Agenda Bookings (chronologically ordered, excluding days before today)
 const agendaBookings = computed(() => {
-    return [...props.bookings].sort((a, b) => {
-        const dateCompare = a.start_date.localeCompare(b.start_date);
+    const todayStr = formatDateString(new Date());
 
-        if (dateCompare !== 0) {
-            return dateCompare;
-        }
+    return props.bookings
+        .filter(b => b.start_date >= todayStr)
+        .sort((a, b) => {
+            const dateCompare = a.start_date.localeCompare(b.start_date);
 
-        return a.start_hour.localeCompare(b.start_hour);
-    });
+            if (dateCompare !== 0) {
+                return dateCompare;
+            }
+
+            return a.start_hour.localeCompare(b.start_hour);
+        });
 });
 
 // Formatter helpers
@@ -398,11 +434,12 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                         <div
                             class="grid grid-cols-7 auto-rows-[110px] sm:auto-rows-[125px] divide-x divide-y divide-slate-100 dark:divide-slate-800 bg-slate-50/20 dark:bg-slate-950/20">
                             <div v-for="(day, index) in daysInMonth" :key="index"
-                                class="p-2 transition-all relative flex flex-col group bg-white dark:bg-slate-900"
+                                class="p-2 transition-all relative flex flex-col group bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                 :class="[
                                     day.isCurrentMonth ? '' : 'bg-slate-50/50 dark:bg-slate-900/30 text-slate-400 dark:text-slate-600',
                                     day.isToday ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
-                                ]">
+                                ]"
+                                @click="selectDate(day.date)">
                                 <!-- Day Number / Today Badge -->
                                 <div class="flex items-center justify-between mb-1">
                                     <span
@@ -546,6 +583,96 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                         </div>
                     </CardContent>
                 </Card>
+            </div>
+        </div>
+
+        <!-- Detail Rapat Modal -->
+        <div v-if="isDateModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity duration-300" @click="isDateModalOpen = false">
+            <div class="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-155" @click.stop>
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <CalendarDays class="h-5 w-5 text-blue-900 dark:text-blue-400" />
+                            Detail Rapat - {{ formatDateLong(formatDateString(selectedCalendarDate!)) }}
+                        </h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">
+                            Daftar agenda penggunaan ruangan rapat pada hari ini.
+                        </p>
+                    </div>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 rounded-lg cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" @click="isDateModalOpen = false">
+                        <X class="h-4 w-4" />
+                    </Button>
+                </div>
+
+                <!-- Modal Body (List of bookings) -->
+                <div class="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-950/20 space-y-4">
+                    <div v-if="selectedDateBookings.length === 0" class="py-12 text-center">
+                        <CalendarIcon class="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak Ada Agenda Rapat</p>
+                        <p class="text-xs text-muted-foreground mt-1">Seluruh ruangan rapat kosong pada tanggal ini.</p>
+                    </div>
+
+                    <div v-else class="space-y-4">
+                        <div v-for="booking in selectedDateBookings" :key="booking.id" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all duration-200 hover:shadow-xs">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white"
+                                            :class="isPastBooking(booking.start_date, booking.finish_hour) ? 'line-through text-slate-400' : ''">
+                                            {{ booking.title }}
+                                        </h3>
+                                        <Badge v-if="isPastBooking(booking.start_date, booking.finish_hour)"
+                                            variant="outline"
+                                            class="text-[9px] py-0 px-1.5 text-slate-400 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                                            Selesai
+                                        </Badge>
+                                        <Badge v-else variant="default"
+                                            class="text-[9px] py-0 px-1.5 bg-blue-100 hover:bg-blue-100 text-blue-900 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50">
+                                            Mendatang
+                                        </Badge>
+                                    </div>
+
+                                    <!-- Room name / floor -->
+                                    <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                        <Building2 class="h-3.5 w-3.5 text-slate-400" />
+                                        <span>{{ booking.room.name }}</span>
+                                    </div>
+
+                                    <!-- Requester Info -->
+                                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                        <Users class="h-3.5 w-3.5" />
+                                        <span>Pemohon: {{ booking.requester.name }}</span>
+                                        <span v-if="booking.requester.org" class="text-slate-300 dark:text-slate-700">|</span>
+                                        <span v-if="booking.requester.org" class="font-medium text-slate-700 dark:text-slate-300">{{ booking.requester.org }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Time panel -->
+                                <div class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-slate-100 dark:border-slate-800 pt-3 sm:pt-0 sm:pl-6 shrink-0 gap-2">
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                                        <Clock class="h-4 w-4 text-slate-400" />
+                                        <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3">
+                    <Button variant="outline" class="cursor-pointer" @click="isDateModalOpen = false">
+                        Tutup
+                    </Button>
+                    <Button 
+                        class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer gap-2"
+                        @click="goToCreateBooking(selectedCalendarDate!)"
+                    >
+                        <CalendarIcon class="h-4 w-4" />
+                        Buat Reservasi di Tanggal Ini
+                    </Button>
+                </div>
             </div>
         </div>
 
