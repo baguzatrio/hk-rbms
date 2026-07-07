@@ -65,8 +65,8 @@ let searchTimeout: any = null;
 
 const performSearch = () => {
     router.get('/admin/rooms', {
-        search: searchQuery.value,
-        per_page: perPage.value,
+        search: searchQuery.value || undefined,
+        per_page: perPage.value === 10 ? undefined : perPage.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -180,7 +180,7 @@ const cleanLabel = (label: string) => {
             </div>
 
             <!-- Empty State (No Rooms at all in DB and No Search Active) -->
-            <div v-if="rooms.data.length === 0 && !searchQuery"
+            <div v-if="rooms.data.length === 0 && !props.filters?.search"
                 class="py-16 text-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl shadow-xs">
                 <Building2 class="h-10 w-10 text-slate-300 mx-auto mb-3" />
                 <p class="text-sm text-slate-700 dark:text-slate-300">Belum ada ruangan</p>
@@ -189,7 +189,7 @@ const cleanLabel = (label: string) => {
             </div>
 
             <!-- Table View Mode -->
-            <div
+            <div v-else
                 class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-xs">
                 <!-- Control Bar (Attached to Table) -->
                 <div
