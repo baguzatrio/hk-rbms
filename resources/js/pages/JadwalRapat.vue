@@ -313,7 +313,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                         Jadwal Ruang Rapat
                     </h1>
                     <p class="text-sm text-muted-foreground mt-1">
-                        Lihat ketersediaan dan jadwal pemakaian ruang rapat aktif yang sudah disetujui.
+                        Lihat ketersediaan dan jadwal pemakaian ruangan.
                     </p>
                 </div>
                 <!-- View Mode Toggle -->
@@ -438,8 +438,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                 :class="[
                                     day.isCurrentMonth ? '' : 'bg-slate-50/50 dark:bg-slate-900/30 text-slate-400 dark:text-slate-600',
                                     day.isToday ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
-                                ]"
-                                @click="selectDate(day.date)">
+                                ]" @click="selectDate(day.date)">
                                 <!-- Day Number / Today Badge -->
                                 <div class="flex items-center justify-between mb-1">
                                     <span
@@ -558,7 +557,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                                     class="text-slate-300 dark:text-slate-700">|</span>
                                                 <span v-if="booking.requester.org"
                                                     class="font-medium text-slate-700 dark:text-slate-300">{{
-                                                    booking.requester.org }}</span>
+                                                        booking.requester.org }}</span>
                                             </div>
                                         </div>
 
@@ -574,7 +573,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                                 class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
                                                 <Clock class="h-4 w-4 text-slate-400" />
                                                 <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour)
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -587,10 +586,14 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
         </div>
 
         <!-- Detail Rapat Modal -->
-        <div v-if="isDateModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity duration-300" @click="isDateModalOpen = false">
-            <div class="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-155" @click.stop>
+        <div v-if="isDateModalOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+            @click="isDateModalOpen = false">
+            <div class="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-155"
+                @click.stop>
                 <!-- Modal Header -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div
+                    class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                     <div>
                         <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <CalendarDays class="h-5 w-5 text-blue-900 dark:text-blue-400" />
@@ -600,7 +603,9 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                             Daftar agenda penggunaan ruangan rapat pada hari ini.
                         </p>
                     </div>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 rounded-lg cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" @click="isDateModalOpen = false">
+                    <Button variant="ghost" size="icon"
+                        class="h-8 w-8 rounded-lg cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        @click="isDateModalOpen = false">
                         <X class="h-4 w-4" />
                     </Button>
                 </div>
@@ -614,7 +619,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                     </div>
 
                     <div v-else class="space-y-4">
-                        <div v-for="booking in selectedDateBookings" :key="booking.id" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all duration-200 hover:shadow-xs">
+                        <div v-for="booking in selectedDateBookings" :key="booking.id"
+                            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all duration-200 hover:shadow-xs">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div class="space-y-1">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -634,7 +640,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                     </div>
 
                                     <!-- Room name / floor -->
-                                    <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                    <div
+                                        class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                                         <Building2 class="h-3.5 w-3.5 text-slate-400" />
                                         <span>{{ booking.room.name }}</span>
                                     </div>
@@ -643,14 +650,19 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                     <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                                         <Users class="h-3.5 w-3.5" />
                                         <span>Pemohon: {{ booking.requester.name }}</span>
-                                        <span v-if="booking.requester.org" class="text-slate-300 dark:text-slate-700">|</span>
-                                        <span v-if="booking.requester.org" class="font-medium text-slate-700 dark:text-slate-300">{{ booking.requester.org }}</span>
+                                        <span v-if="booking.requester.org"
+                                            class="text-slate-300 dark:text-slate-700">|</span>
+                                        <span v-if="booking.requester.org"
+                                            class="font-medium text-slate-700 dark:text-slate-300">{{
+                                                booking.requester.org }}</span>
                                     </div>
                                 </div>
 
                                 <!-- Time panel -->
-                                <div class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-slate-100 dark:border-slate-800 pt-3 sm:pt-0 sm:pl-6 shrink-0 gap-2">
-                                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                                <div
+                                    class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-slate-100 dark:border-slate-800 pt-3 sm:pt-0 sm:pl-6 shrink-0 gap-2">
+                                    <div
+                                        class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
                                         <Clock class="h-4 w-4 text-slate-400" />
                                         <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour) }}</span>
                                     </div>
@@ -661,14 +673,14 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3">
+                <div
+                    class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3">
                     <Button variant="outline" class="cursor-pointer" @click="isDateModalOpen = false">
                         Tutup
                     </Button>
-                    <Button 
+                    <Button
                         class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer gap-2"
-                        @click="goToCreateBooking(selectedCalendarDate!)"
-                    >
+                        @click="goToCreateBooking(selectedCalendarDate!)">
                         <CalendarIcon class="h-4 w-4" />
                         Buat Reservasi di Tanggal Ini
                     </Button>

@@ -48,14 +48,14 @@ const formatTimeRange = (start: string, finish: string) => {
 
 const formatDateDMY = (dateStr: string) => {
     if (!dateStr) {
-return '';
-}
+        return '';
+    }
 
     const parts = dateStr.split('-');
 
     if (parts.length !== 3) {
-return dateStr;
-}
+        return dateStr;
+    }
 
     const [year, month, day] = parts;
 
@@ -64,6 +64,7 @@ return dateStr;
 </script>
 
 <template>
+
     <Head title="Admin Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
@@ -155,7 +156,8 @@ return dateStr;
 
             <!-- Recent Pending Section -->
             <Card class="border-slate-100 dark:border-slate-800">
-                <CardHeader class="flex flex-row items-center justify-between pb-3 border-b border-slate-50 dark:border-slate-800/50">
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-3 border-b border-slate-50 dark:border-slate-800/50">
                     <div>
                         <CardTitle class="text-lg text-blue-900 dark:text-blue-400 flex items-center gap-2">
                             <ClipboardCheck class="h-5 w-5" />
@@ -211,7 +213,8 @@ return dateStr;
                                             <Calendar class="h-3.5 w-3.5" />
                                             <span>{{ formatDateDMY(booking.start_date) }}</span>
                                         </div>
-                                        <div class="flex items-center gap-1.5 text-xs mt-0.5 font-medium text-slate-700 dark:text-slate-300">
+                                        <div
+                                            class="flex items-center gap-1.5 text-xs mt-0.5 font-medium text-slate-700 dark:text-slate-300">
                                             <Clock class="h-3.5 w-3.5" />
                                             <span>{{ formatTimeRange(booking.start_hour, booking.finish_hour) }}</span>
                                         </div>

@@ -35,13 +35,36 @@ class UserSeeder extends Seeder
         $user = User::firstOrCreate(
             ['email' => 'dika@gmail.com'],
             [
-                'name' => 'Dika',
+                'name' => 'Ahmad Zulfikar Ananta Mahardika',
                 'password' => 'password',
                 'role' => 'user',             // kolom mirror
                 'organization_id' => $hcOrgId,
                 'email_verified_at' => now(),
             ]
         );
+        $user2 = User::firstOrCreate(
+            ['email' => 'satrio@gmail.com'],
+            [
+                'name' => 'Muhammad Bagus Satrio Aji',
+                'password' => 'password',
+                'role' => 'user',             // kolom mirror
+                'organization_id' => $ertiOrgId,
+                'email_verified_at' => now(),
+            ]
+        );
+        $user3 = User::firstOrCreate(
+            ['email' => 'aldi@gmail.com'],
+            [
+                'name' => 'Ayudya Aldi Setyawan',
+                'password' => 'password',
+                'role' => 'user',             // kolom mirror
+                'organization_id' => $ertiOrgId,
+                'email_verified_at' => now(),
+            ]
+        );
+
         $user->syncRoles(['user']);
+        $user2->syncRoles(['user']);
+        $user3->syncRoles(['user']);
     }
 }

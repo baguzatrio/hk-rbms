@@ -112,7 +112,7 @@ const adminMenu = computed<NavItem[]>(() => [
         icon: CalendarDays,
     },
     {
-        title: 'Activity Log',
+        title: 'Riwayat Booking',
         href: admin.logs.index(),
         icon: History,
     },

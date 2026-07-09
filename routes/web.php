@@ -61,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Activity Log (read-only)
         Route::get('/logs',              [Admin\ActivityLogController::class, 'index'])->name('logs.index');
+        Route::get('/logs/export',       [Admin\ActivityLogController::class, 'export'])->name('logs.export');
     });
 });
 
