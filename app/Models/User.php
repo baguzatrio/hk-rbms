@@ -14,6 +14,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 
 #[Fillable(['name', 'email', 'password', 'role', 'organization_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -29,6 +30,21 @@ class User extends Authenticatable
             ->logAll()
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    public function beforeActivityLogged(Activity $activity, string $eventName)
+    {
+        if ($eventName === 'created') {
+            $activity->description = "Membuat user: {$this->name}";
+        }
+
+        if ($eventName === 'updated') {
+            $activity->description = "Mengubah user: {$this->name}";
+        }
+
+        if ($eventName === 'deleted') {
+            $activity->description = "Menghapus user: {$this->name}";
+        }
     }
 
     /**

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
 
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Support\LogOptions;
 
 class Room extends Model
@@ -20,6 +21,21 @@ class Room extends Model
             ->logAll()
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    public function beforeActivityLogged(Activity $activity, string $eventName)
+    {
+        if ($eventName === 'created') {
+            $activity->description = "Membuat ruangan: {$this->name}";
+        }
+
+        if ($eventName === 'updated') {
+            $activity->description = "Mengubah ruangan: {$this->name}";
+        }
+
+        if ($eventName === 'deleted') {
+            $activity->description = "Menghapus ruangan: {$this->name}";
+        }
     }
 
     protected $fillable = [

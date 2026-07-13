@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Support\LogOptions;
 
 class Book extends Model
@@ -21,7 +22,7 @@ class Book extends Model
             ->dontLogEmptyChanges();
     }
 
-    public function beforeActivityLogged(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    public function beforeActivityLogged(Activity $activity, string $eventName)
     {
         if ($eventName === 'created') {
             $activity->description = "Membuat pengajuan reservasi: {$this->title}";

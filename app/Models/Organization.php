@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Support\LogOptions;
 
 class Organization extends Model
@@ -19,6 +20,21 @@ class Organization extends Model
             ->logAll()
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    public function beforeActivityLogged(Activity $activity, string $eventName)
+    {
+        if ($eventName === 'created') {
+            $activity->description = "Membuat organisasi: {$this->name}";
+        }
+
+        if ($eventName === 'updated') {
+            $activity->description = "Mengubah organisasi: {$this->name}";
+        }
+
+        if ($eventName === 'deleted') {
+            $activity->description = "Menghapus organisasi: {$this->name}";
+        }
     }
 
     protected $fillable = ['name', 'shortname'];
