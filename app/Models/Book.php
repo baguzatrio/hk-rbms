@@ -5,9 +5,48 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+
 class Book extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('Book')
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
+
+    public function beforeActivityLogged(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    {
+        if ($eventName === 'created') {
+            $activity->description = "Membuat pengajuan reservasi: {$this->title}";
+        }
+
+        if ($eventName === 'updated') {
+            if ($this->isDirty('status')) {
+                $status = $this->status;
+                if ($status === 'approved') {
+                    $activity->description = "Menyetujui booking: {$this->title}";
+                    $activity->event = 'approved';
+                } elseif ($status === 'rejected') {
+                    $activity->description = "Menolak booking: {$this->title}";
+                    $activity->event = 'rejected';
+                } elseif ($status === 'cancelled') {
+                    if ($this->getOriginal('status') === 'approved') {
+                        $activity->description = "Membatalkan booking yang disetujui: {$this->title}";
+                    } else {
+                        $activity->description = "Membatalkan booking: {$this->title}";
+                    }
+                    $activity->event = 'cancelled';
+                }
+            }
+        }
+    }
 
     protected $fillable = [
         'room_id', 'requester_id', 'title',

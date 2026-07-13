@@ -94,7 +94,7 @@ class BookingController extends Controller
             ]);
         }
 
-        Book::create([
+        $book = Book::create([
             ...$validated,
             'requester_id' => Auth::id(),
             'status'       => 'pending',

@@ -3,8 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Book;
-use App\Models\Room;
+use Spatie\Activitylog\Models\Activity;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,62 +13,52 @@ class ActivityLogController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = Book::with(['room', 'requester.organization', 'approver']);
+        $query = Activity::with('causer');
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        $bookings = $query->latest('start_date')
+        $logs = $query->latest()
             ->paginate($request->integer('per_page', 15))
             ->withQueryString()
-            ->through(fn($b) => [
-                'id'          => $b->id,
-                'title'       => $b->title,
-                'status'      => $b->status,
-                'start_date'  => $b->start_date->format('Y-m-d'),
-                'end_date'    => $b->end_date?->format('Y-m-d'),
-                'start_hour'  => $b->start_hour,
-                'finish_hour' => $b->finish_hour,
-                'pic_name'    => $b->pic_name,
-                'remarks'     => $b->remarks,
-                'room'        => [
-                    'id'    => $b->room->id,
-                    'name'  => $b->room->name,
-                    'floor' => $b->room->floor,
-                ],
-                'requester'   => [
-                    'id'   => $b->requester->id,
-                    'name' => $b->requester->name,
-                    'org'  => $b->requester->organization?->shortname ?? $b->requester->organization?->name,
-                ],
-                'approver'    => $b->approver ? [
-                    'id'   => $b->approver->id,
-                    'name' => $b->approver->name,
+            ->through(fn($l) => [
+                'id'          => $l->id,
+                'action'      => $l->log_name,
+                'model_type'  => $l->subject_type ? class_basename($l->subject_type) : null,
+                'model_id'    => $l->subject_id,
+                'description' => $l->description,
+                'event'       => $l->event,
+                'ip_address'  => $l->getProperty('ip_address'),
+                'user_agent'  => $l->getProperty('user_agent'),
+                'properties'  => $l->properties,
+                'created_at'  => $l->created_at->format('Y-m-d H:i:s'),
+                'user'        => $l->causer ? [
+                    'id'   => $l->causer->id,
+                    'name' => $l->causer->name,
+                    'email'=> $l->causer->email,
                 ] : null,
             ]);
 
-        $rooms = Room::select('id', 'name', 'floor')->orderBy('name')->get();
-        $floors = Room::select('floor')->distinct()->orderBy('floor')->pluck('floor');
+        // Get unique action types from db for filter dropdown
+        $actions = Activity::select('log_name')->distinct()->orderBy('log_name')->pluck('log_name');
 
         return Inertia::render('Admin/Logs/Index', [
-            'bookings' => $bookings,
-            'rooms'    => $rooms,
-            'floors'   => $floors,
-            'filters'  => $request->only(['start_month', 'end_month', 'room_id', 'floor', 'search']),
+            'logs'    => $logs,
+            'actions' => $actions,
+            'filters' => $request->only(['start_month', 'end_month', 'action_filter', 'search']),
         ]);
     }
 
     public function export(Request $request)
     {
-        $query = Book::with(['room', 'requester.organization', 'approver']);
+        $query = Activity::with('causer');
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        $bookings = $query->latest('start_date')->get();
+        $logs = $query->latest()->get();
 
-        $filename = $request->input('filename', 'riwayat_booking');
-        // Sanitize filename to prevent directory traversal or invalid characters
+        $filename = $request->input('filename', 'log_aktivitas');
         $filename = preg_replace('/[^A-Za-z0-9_\-]/', '_', $filename) . '.csv';
 
         $headers = [
@@ -80,42 +69,34 @@ class ActivityLogController extends Controller
             'Expires'             => '0',
         ];
 
-        return response()->streamDownload(function() use ($bookings) {
+        return response()->streamDownload(function() use ($logs) {
             $output = fopen('php://output', 'w');
             
-            // Add UTF-8 BOM to make it open nicely in Excel
+            // Add UTF-8 BOM
             fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header columns
             fputcsv($output, [
                 'No',
-                'Judul Rapat',
-                'Ruangan',
-                'Lantai',
-                'Pemohon',
-                'Divisi Pemohon',
-                'Tanggal Rapat',
-                'Waktu Rapat',
-                'Penanggung Jawab (PIC)',
-                'Status',
-                'Catatan/Remarks',
-                'Diproses Oleh',
+                'Tanggal & Waktu',
+                'Nama Pengguna',
+                'Email',
+                'Aksi',
+                'Deskripsi',
+                'IP Address',
+                'Browser/Device',
             ]);
 
-            foreach ($bookings as $index => $b) {
+            foreach ($logs as $index => $l) {
                 fputcsv($output, [
                     $index + 1,
-                    $b->title,
-                    $b->room->name,
-                    $b->room->floor,
-                    $b->requester->name,
-                    $b->requester->organization?->shortname ?? $b->requester->organization?->name ?? '-',
-                    $b->start_date->format('d-m-Y') . ($b->end_date ? ' s.d. ' . $b->end_date->format('d-m-Y') : ''),
-                    substr($b->start_hour, 0, 5) . ' - ' . substr($b->finish_hour, 0, 5),
-                    $b->pic_name ?? '-',
-                    ucfirst($b->status),
-                    $b->remarks ?? '-',
-                    $b->approver?->name ?? '-',
+                    $l->created_at->format('d-m-Y H:i:s'),
+                    $l->causer?->name ?? 'Sistem / Hapus',
+                    $l->causer?->email ?? '-',
+                    $l->log_name,
+                    $l->description ?? '-',
+                    $l->getProperty('ip_address') ?? '-',
+                    $l->getProperty('user_agent') ?? '-',
                 ]);
             }
 
@@ -126,23 +107,17 @@ class ActivityLogController extends Controller
     private function applyFilters($query, Request $request): void
     {
         if ($request->filled('start_month')) {
-            $start = Carbon::parse($request->start_month . '-01')->startOfMonth()->toDateString();
-            $query->whereDate('start_date', '>=', $start);
+            $start = Carbon::parse($request->start_month . '-01')->startOfMonth()->toDateTimeString();
+            $query->where('created_at', '>=', $start);
         }
 
         if ($request->filled('end_month')) {
-            $end = Carbon::parse($request->end_month . '-01')->endOfMonth()->toDateString();
-            $query->whereDate('start_date', '<=', $end);
+            $end = Carbon::parse($request->end_month . '-01')->endOfMonth()->toDateTimeString();
+            $query->where('created_at', '<=', $end);
         }
 
-        if ($request->filled('room_id') && $request->room_id !== 'all') {
-            $query->where('room_id', $request->room_id);
-        }
-
-        if ($request->filled('floor') && $request->floor !== 'all') {
-            $query->whereHas('room', function($q) use ($request) {
-                $q->where('floor', $request->floor);
-            });
+        if ($request->filled('action_filter') && $request->action_filter !== 'all') {
+            $query->where('log_name', $request->action_filter);
         }
 
         if ($request->filled('search')) {
@@ -150,10 +125,11 @@ class ActivityLogController extends Controller
             $like = $driver === 'pgsql' ? 'ilike' : 'like';
             $search = $request->search;
             $query->where(function($q) use ($search, $like) {
-                $q->where('title', $like, "%{$search}%")
-                  ->orWhere('pic_name', $like, "%{$search}%")
-                  ->orWhereHas('requester', function($q2) use ($search, $like) {
-                      $q2->where('name', $like, "%{$search}%");
+                $q->where('description', $like, "%{$search}%")
+                  ->orWhere('log_name', $like, "%{$search}%")
+                  ->orWhereHasMorph('causer', [\App\Models\User::class], function($q2) use ($search, $like) {
+                      $q2->where('name', $like, "%{$search}%")
+                        ->orWhere('email', $like, "%{$search}%");
                   });
             });
         }

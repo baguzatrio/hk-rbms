@@ -1,53 +1,39 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
-    Calendar,
     Clock,
     Search,
     FileSpreadsheet,
-    Building2,
     User,
-    Check,
     X as CloseIcon,
     History,
-    Briefcase
+    ShieldAlert,
+    Monitor
 } from 'lucide-vue-next';
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
-interface Room {
+interface LogUser {
     id: number;
     name: string;
-    floor: string;
+    email: string;
 }
 
-interface Requester {
+interface LogItem {
     id: number;
-    name: string;
-    org?: string;
-}
-
-interface Approver {
-    id: number;
-    name: string;
-}
-
-interface BookingItem {
-    id: number;
-    title: string;
-    status: string;
-    start_date: string;
-    end_date?: string;
-    start_hour: string;
-    finish_hour: string;
-    pic_name?: string;
-    remarks?: string;
-    room: Room;
-    requester: Requester;
-    approver?: Approver;
+    action: string;
+    model_type: string | null;
+    model_id: number | null;
+    description: string | null;
+    event: string | null;
+    ip_address: string | null;
+    user_agent: string | null;
+    properties: any;
+    created_at: string;
+    user: LogUser | null;
 }
 
 interface PaginationLink {
@@ -56,8 +42,8 @@ interface PaginationLink {
     active: boolean;
 }
 
-interface PaginatedBookings {
-    data: BookingItem[];
+interface PaginatedLogs {
+    data: LogItem[];
     links: PaginationLink[];
     current_page: number;
     per_page: number;
@@ -66,28 +52,25 @@ interface PaginatedBookings {
 }
 
 const props = defineProps<{
-    bookings: PaginatedBookings;
-    rooms: Room[];
-    floors: string[];
+    logs: PaginatedLogs;
+    actions: string[];
     filters?: {
         start_month?: string;
         end_month?: string;
-        room_id?: string;
-        floor?: string;
+        action_filter?: string;
         search?: string;
     };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin Dashboard', href: '/dashboard' },
-    { title: 'Riwayat Booking', href: '/admin/logs' },
+    { title: 'Log Aktivitas', href: '/admin/logs' },
 ];
 
 // Filters State
 const startMonth = ref(props.filters?.start_month || '');
 const endMonth = ref(props.filters?.end_month || '');
-const roomFilter = ref(props.filters?.room_id || 'all');
-const floorFilter = ref(props.filters?.floor || 'all');
+const actionFilter = ref(props.filters?.action_filter || 'all');
 const searchQuery = ref(props.filters?.search || '');
 
 let filterTimeout: any;
@@ -98,8 +81,7 @@ const applyFilters = () => {
         router.get('/admin/logs', {
             start_month: startMonth.value || undefined,
             end_month: endMonth.value || undefined,
-            room_id: roomFilter.value !== 'all' ? roomFilter.value : undefined,
-            floor: floorFilter.value !== 'all' ? floorFilter.value : undefined,
+            action_filter: actionFilter.value !== 'all' ? actionFilter.value : undefined,
             search: searchQuery.value || undefined,
         }, {
             preserveState: true,
@@ -108,7 +90,7 @@ const applyFilters = () => {
     }, 150);
 };
 
-watch([startMonth, endMonth, roomFilter, floorFilter, searchQuery], applyFilters);
+watch([startMonth, endMonth, actionFilter, searchQuery], applyFilters);
 
 const cleanLabel = (label: string) => {
     if (label.includes('Previous') || label.includes('Sebelumnya') || label.toLowerCase().includes('prev')) {
@@ -122,46 +104,44 @@ const cleanLabel = (label: string) => {
     return label;
 };
 
-const getStatusBadge = (status: string) => {
-    switch (status) {
-        case 'approved':
-            return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800/50';
-        case 'rejected':
-            return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50';
-        case 'cancelled':
-            return 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50';
-        default:
-            return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50';
+// Formatter badge aksi
+const getActionBadge = (action: string) => {
+    const actionLower = action.toLowerCase();
+
+    if (actionLower.includes('create') || actionLower === 'room' || actionLower === 'organization' || actionLower === 'user') {
+        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/50';
     }
-};
 
-const translateStatus = (status: string) => {
-    switch (status) {
-        case 'approved': return 'Disetujui';
-        case 'rejected': return 'Ditolak';
-        case 'cancelled': return 'Dibatalkan';
-        default: return 'Pending';
+    if (actionLower.includes('update') || actionLower.includes('edit') || actionLower.includes('reset')) {
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50';
     }
+
+    if (actionLower.includes('delete') || actionLower.includes('reject') || actionLower.includes('cancel')) {
+        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50';
+    }
+
+    if (actionLower.includes('approve')) {
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50';
+    }
+
+    return 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
 };
 
-const formatTime = (timeStr: string) => {
-    return timeStr.substring(0, 5);
-};
-
-const formatDateDMY = (dateStr: string) => {
-    if (!dateStr) {
+const formatDateTime = (dateTimeStr: string) => {
+    if (!dateTimeStr) {
         return '';
     }
 
-    const parts = dateStr.split('-');
+    const [datePart, timePart] = dateTimeStr.split(' ');
 
-    if (parts.length !== 3) {
-        return dateStr;
+    if (!datePart) {
+        return dateTimeStr;
     }
 
-    const [year, month, day] = parts;
+    const [year, month, day] = datePart.split('-');
+    const formattedDate = `${day}-${month}-${year}`;
 
-    return `${day}-${month}-${year}`;
+    return timePart ? `${formattedDate} ${timePart.substring(0, 5)}` : formattedDate;
 };
 
 // Export Modal
@@ -171,7 +151,7 @@ const exportFilename = ref('');
 const openExportModal = () => {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '_');
-    exportFilename.value = `riwayat_booking_${dateStr}`;
+    exportFilename.value = `log_aktivitas_${dateStr}`;
     isExportModalOpen.value = true;
 };
 
@@ -198,12 +178,8 @@ const submitExport = () => {
         queryParams.end_month = endMonth.value;
     }
 
-    if (roomFilter.value && roomFilter.value !== 'all') {
-        queryParams.room_id = String(roomFilter.value);
-    }
-
-    if (floorFilter.value && floorFilter.value !== 'all') {
-        queryParams.floor = floorFilter.value;
+    if (actionFilter.value && actionFilter.value !== 'all') {
+        queryParams.action_filter = actionFilter.value;
     }
 
     if (searchQuery.value) {
@@ -215,39 +191,180 @@ const submitExport = () => {
     closeExportModal();
 };
 
-const activeRoomName = computed(() => {
-    if (roomFilter.value === 'all') {
-        return 'Semua Ruangan';
+const translateAction = (action: string) => {
+    const actionLower = action.toLowerCase();
+    const actionMap: Record<string, string> = {
+        'room': 'Modul Ruangan',
+        'user': 'Modul Pengguna',
+        'organization': 'Modul Organisasi',
+        'book': 'Modul Booking',
+        'create booking': 'Buat Booking',
+        'cancel booking': 'Batal Booking (User)',
+        'approve booking': 'Approve Booking',
+        'reject booking': 'Reject Booking',
+        'cancel approved booking': 'Batal Booking (Admin)',
+        'create & approve booking': 'Booking Langsung Admin',
+        'create room': 'Tambah Ruangan',
+        'update room': 'Edit Ruangan',
+        'delete room': 'Hapus Ruangan',
+        'create user': 'Tambah User',
+        'update user': 'Edit User',
+        'delete user': 'Hapus User',
+        'reset password': 'Reset Password',
+        'create organization': 'Tambah Organisasi',
+        'update organization': 'Edit Organisasi',
+        'delete organization': 'Hapus Organisasi',
+    };
+
+    return actionMap[actionLower] || action;
+};
+
+const translateEvent = (event: string | null) => {
+    if (!event) return '-';
+    const evLower = event.toLowerCase();
+    const eventMap: Record<string, string> = {
+        'created': 'Dibuat',
+        'updated': 'Diubah',
+        'deleted': 'Dihapus',
+        'approved': 'Disetujui',
+        'rejected': 'Ditolak',
+        'cancelled': 'Dibatalkan',
+    };
+    return eventMap[evLower] || event;
+};
+
+const translateDescription = (description: string, modelType: string | null) => {
+    const descLower = description.toLowerCase();
+    const typeLabel = modelType ? translateAction(modelType) : 'Data';
+
+    if (descLower === 'created') {
+        return `Menambahkan ${typeLabel.toLowerCase()}`;
     }
 
-    const r = props.rooms.find(room => String(room.id) === String(roomFilter.value));
+    if (descLower === 'updated') {
+        return `Mengubah ${typeLabel.toLowerCase()}`;
+    }
 
-    return r ? r.name : 'Semua Ruangan';
-});
+    if (descLower === 'deleted') {
+        return `Menghapus ${typeLabel.toLowerCase()}`;
+    }
+
+    return description;
+};
+
+// Check if Spatie Log has changes
+const hasChanges = (log: LogItem) => {
+    return log.properties && (log.properties.attributes || log.properties.old);
+};
+
+// Parse changed fields for visualization
+const getChangedFields = (log: LogItem) => {
+    const changes: Record<string, { old?: any; new: any }> = {};
+    const attrs = log.properties.attributes || {};
+    const olds = log.properties.old || {};
+
+    const ignoredFields = ['password', 'created_at', 'updated_at', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'];
+
+    for (const key in attrs) {
+        if (ignoredFields.includes(key)) {
+            continue;
+        }
+
+        // Skip if new value is same as old value
+        if (olds[key] !== undefined && JSON.stringify(olds[key]) === JSON.stringify(attrs[key])) {
+            continue;
+        }
+
+        changes[key] = {
+            old: olds[key],
+            new: attrs[key]
+        };
+    }
+
+    // Also pick up any old keys that might not be in attributes (e.g. deleted model fields)
+    for (const key in olds) {
+        if (ignoredFields.includes(key)) {
+            continue;
+        }
+
+        if (!changes[key] && attrs[key] === undefined) {
+            changes[key] = {
+                old: olds[key],
+                new: 'N/A (Terhapus)'
+            };
+        }
+    }
+
+    return changes;
+};
+
+const formatValue = (val: any): string => {
+    if (val === null || val === undefined) {
+        return 'null';
+    }
+
+    if (typeof val === 'boolean') {
+        return val ? 'TRUE' : 'FALSE';
+    }
+
+    if (typeof val === 'object') {
+        return JSON.stringify(val);
+    }
+
+    return String(val);
+};
+
+const formatFieldLabel = (field: string): string => {
+    const labels: Record<string, string> = {
+        'name': 'Nama',
+        'slug': 'Slug',
+        'floor': 'Lantai',
+        'capacity': 'Kapasitas',
+        'description': 'Keterangan',
+        'is_active': 'Status Aktif',
+        'photo_path': 'Foto',
+        'email': 'Email',
+        'role': 'Hak Akses',
+        'organization_id': 'ID Organisasi',
+        'shortname': 'Nama Singkat',
+        'title': 'Agenda',
+        'start_date': 'Tgl Mulai',
+        'end_date': 'Tgl Selesai',
+        'start_hour': 'Jam Mulai',
+        'finish_hour': 'Jam Selesai',
+        'notes': 'Catatan',
+        'remarks': 'Remarks',
+        'pic_name': 'PIC',
+        'participants': 'Peserta',
+    };
+
+    return labels[field] || field;
+};
 </script>
 
 <template>
-    <Head title="Riwayat Booking - RBMS" />
+
+    <Head title="Log Aktivitas - RBMS" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6">
             <!-- Header -->
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                    <h1
+                        class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                         <History class="h-6 w-6 text-blue-900 dark:text-blue-400" />
-                        Riwayat & Laporan Booking
+                        Log Aktivitas Sistem
                     </h1>
                     <p class="text-sm text-muted-foreground mt-1">
-                        Saring, telusuri, dan unduh data arsip pemesanan ruang rapat.
+                        Pantau seluruh riwayat aksi, perubahan data master (old vs new), dan audit persetujuan di dalam
+                        sistem.
                     </p>
                 </div>
                 <div>
-                    <Button
-                        @click="openExportModal"
+                    <Button @click="openExportModal"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-2 font-semibold shadow-sm"
-                        size="sm"
-                    >
+                        size="sm">
                         <FileSpreadsheet class="h-4 w-4" />
                         Ekspor CSV
                     </Button>
@@ -255,52 +372,31 @@ const activeRoomName = computed(() => {
             </div>
 
             <!-- Filters Section -->
-            <div class="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xs">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div
+                class="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xs">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- Start Month -->
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Bulan Mulai</label>
-                        <input
-                            v-model="startMonth"
-                            type="month"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer"
-                        />
+                        <input v-model="startMonth" type="month"
+                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer" />
                     </div>
 
                     <!-- End Month -->
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Bulan Selesai</label>
-                        <input
-                            v-model="endMonth"
-                            type="month"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer"
-                        />
+                        <input v-model="endMonth" type="month"
+                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer" />
                     </div>
 
-                    <!-- Room Selector -->
+                    <!-- Action Selector -->
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ruangan</label>
-                        <select
-                            v-model="roomFilter"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer"
-                        >
-                            <option value="all">Semua Ruangan</option>
-                            <option v-for="room in rooms" :key="room.id" :value="room.id">
-                                {{ room.name }} (Lantai {{ room.floor }})
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Floor Selector -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Lantai</label>
-                        <select
-                            v-model="floorFilter"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer"
-                        >
-                            <option value="all">Semua Lantai</option>
-                            <option v-for="fl in floors" :key="fl" :value="fl">
-                                Lantai {{ fl }}
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi Aktivitas</label>
+                        <select v-model="actionFilter"
+                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer">
+                            <option value="all">Semua Aksi</option>
+                            <option v-for="act in actions" :key="act" :value="act">
+                                {{ translateAction(act) }}
                             </option>
                         </select>
                     </div>
@@ -309,30 +405,29 @@ const activeRoomName = computed(() => {
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pencarian</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+                            <span
+                                class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
                                 <Search class="h-3.5 w-3.5" />
                             </span>
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                placeholder="Cari acara, pemohon, PIC..."
-                                class="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600"
-                            />
+                            <input v-model="searchQuery" type="text" placeholder="Cari pelaku, email, detail..."
+                                class="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600" />
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Table & Card Container -->
-            <div class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-                <div class="p-4 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+            <div
+                class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
+                <div
+                    class="p-4 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
                     <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Total Data: {{ bookings.total }} Baris
+                        Total Aktivitas: {{ logs.total }} Baris
                     </span>
 
                     <!-- Pagination -->
-                    <div v-if="bookings.links.length > 0" class="flex items-center gap-1 self-end lg:self-auto">
-                        <template v-for="(link, k) in bookings.links" :key="k">
+                    <div v-if="logs.links.length > 0" class="flex items-center gap-1 self-end lg:self-auto">
+                        <template v-for="(link, k) in logs.links" :key="k">
                             <Link v-if="link.url" :href="link.url"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
@@ -350,80 +445,98 @@ const activeRoomName = computed(() => {
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
-                            <tr class="border-b border-slate-100 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wider">
+                            <tr
+                                class="border-b border-slate-100 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wider">
                                 <th class="p-4 w-12 font-semibold">No</th>
-                                <th class="p-4 font-semibold">Acara / Meeting</th>
-                                <th class="p-4 font-semibold">Ruangan</th>
-                                <th class="p-4 font-semibold">Pemohon</th>
-                                <th class="p-4 font-semibold">Tanggal & Waktu</th>
-                                <th class="p-4 font-semibold">PIC</th>
-                                <th class="p-4 font-semibold">Status</th>
-                                <th class="p-4 font-semibold">Catatan / Diproses Oleh</th>
+                                <th class="p-4 w-44 font-semibold">Tanggal & Waktu</th>
+                                <th class="p-4 w-52 font-semibold">Pelaku (Pengguna)</th>
+                                <th class="p-4 w-44 font-semibold">Modul</th>
+                                <th class="p-4 w-44 font-semibold">Aksi</th>
+                                <th class="p-4 font-semibold">Detail Perubahan</th>
+                                <th class="p-4 w-32 font-semibold">IP Address</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="bookings.data.length === 0">
-                                <td colspan="8" class="p-16 text-center text-slate-400">
-                                    Tidak ada data riwayat booking yang cocok dengan filter aktif saat ini.
+                            <tr v-if="logs.data.length === 0">
+                                <td colspan="7" class="p-16 text-center text-slate-400">
+                                    Tidak ada catatan aktivitas sistem yang cocok.
                                 </td>
                             </tr>
 
                             <!-- Data Rows -->
-                            <tr v-for="(booking, idx) in bookings.data" :key="booking.id"
+                            <tr v-for="(log, idx) in logs.data" :key="log.id"
                                 class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                                 <td class="p-4 font-medium text-slate-500 dark:text-slate-400">
-                                    {{ (bookings.current_page - 1) * bookings.per_page + idx + 1 }}
+                                    {{ (logs.current_page - 1) * logs.per_page + idx + 1 }}
                                 </td>
-                                <td class="p-4 text-slate-900 dark:text-white font-semibold">
-                                    {{ booking.title }}
-                                </td>
-                                <td class="p-4 text-slate-700 dark:text-slate-300">
-                                    <div class="flex items-center gap-1 font-medium">
-                                        <Building2 class="h-3.5 w-3.5 text-slate-400" />
-                                        <span>{{ booking.room.name }}</span>
-                                    </div>
-                                    <div class="text-[10px] text-slate-500 font-semibold mt-0.5">
-                                        Lantai: {{ booking.room.floor }}
+                                <td class="p-4 text-slate-700 dark:text-slate-300 font-medium">
+                                    <div class="flex items-center gap-1.5">
+                                        <Clock class="h-3.5 w-3.5 text-slate-450" />
+                                        <span>{{ formatDateTime(log.created_at) }}</span>
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-700 dark:text-slate-300">
-                                    <div class="flex items-center gap-1">
-                                        <User class="h-3.5 w-3.5 text-slate-400" />
-                                        <span class="font-medium">{{ booking.requester.name }}</span>
+                                    <div v-if="log.user" class="space-y-0.5">
+                                        <div
+                                            class="flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
+                                            <User class="h-3.5 w-3.5 text-slate-400" />
+                                            <span>{{ log.user.name }}</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 font-semibold pl-4.5">
+                                            {{ log.user.email }}
+                                        </div>
                                     </div>
-                                    <div class="text-[10px] text-slate-500 font-semibold mt-0.5 flex items-center gap-1">
-                                        <Briefcase class="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Divisi: {{ booking.requester.org || '-' }}</span>
+                                    <div v-else class="flex items-center gap-1 text-slate-400 italic">
+                                        <ShieldAlert class="h-3.5 w-3.5" />
+                                        <span>Sistem</span>
                                     </div>
-                                </td>
-                                <td class="p-4 text-slate-700 dark:text-slate-300">
-                                    <div class="flex items-center gap-1.5 text-xs font-semibold">
-                                        <Calendar class="h-3.5 w-3.5 text-slate-400" />
-                                        <span>{{ formatDateDMY(booking.start_date) }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5 text-[11px] mt-0.5 text-slate-500">
-                                        <Clock class="h-3.5 w-3.5 text-slate-400" />
-                                        <span>{{ formatTime(booking.start_hour) }} - {{ formatTime(booking.finish_hour) }}</span>
-                                    </div>
-                                </td>
-                                <td class="p-4 font-medium text-slate-700 dark:text-slate-300">
-                                    {{ booking.pic_name || '-' }}
                                 </td>
                                 <td class="p-4">
-                                    <Badge :class="getStatusBadge(booking.status)" class="text-[10px] px-2 py-0 border font-bold capitalize">
-                                        {{ translateStatus(booking.status) }}
+                                    <Badge :class="getActionBadge(log.action)"
+                                        class="text-[10px] px-2 py-0 border font-bold capitalize whitespace-nowrap">
+                                        {{ translateAction(log.action) }}
                                     </Badge>
                                 </td>
-                                <td class="p-4 text-slate-700 dark:text-slate-300">
-                                    <p class="text-xs italic text-slate-500" v-if="booking.remarks">
-                                        "{{ booking.remarks }}"
-                                    </p>
-                                    <div class="text-[10px] font-semibold text-slate-500 mt-1 flex items-center gap-1" v-if="booking.approver">
-                                        <Check class="h-3 w-3 text-green-600" />
-                                        <span>Oleh: {{ booking.approver.name }}</span>
+                                <td class="p-4">
+                                    <Badge :class="getActionBadge(log.event || '')"
+                                        class="text-[10px] px-2 py-0 border font-bold capitalize whitespace-nowrap">
+                                        {{ translateEvent(log.event) }}
+                                    </Badge>
+                                </td>
+                                <td class="p-4 text-slate-900 dark:text-white">
+                                    <div class="font-medium text-sm">
+                                        {{ translateDescription(log.description || '', log.model_type) }}
                                     </div>
-                                    <span class="text-slate-400" v-else-if="!booking.remarks">-</span>
+
+                                    <!-- Spatie Log data values delta viewer -->
+                                    <div v-if="hasChanges(log)"
+                                        class="mt-2 text-[11px] p-2 bg-slate-50 dark:bg-slate-950/60 rounded-md border border-slate-100 dark:border-slate-800 space-y-1.5">
+                                        <div class="font-bold text-slate-500 uppercase tracking-wider mb-1 text-[9px]">
+                                            Rincian Perubahan Data:
+                                        </div>
+                                        <div v-for="(val, field) in getChangedFields(log)" :key="field"
+                                            class="flex flex-wrap gap-1.5 items-center">
+                                            <span class="font-semibold text-slate-650 dark:text-slate-400">{{
+                                                formatFieldLabel(field)
+                                            }}</span>:
+                                            <template v-if="val.old !== undefined">
+                                                <span
+                                                    class="px-1.5 py-0.5 rounded-sm bg-red-100/80 text-red-800 dark:bg-red-950/50 dark:text-red-400 line-through">{{
+                                                        formatValue(val.old) }}</span>
+                                                <span class="text-slate-400">&rarr;</span>
+                                            </template>
+                                            <span
+                                                class="px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400 font-bold">{{
+                                                    formatValue(val.new) }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-650 dark:text-slate-400 font-mono text-xs">
+                                    <div class="flex items-center gap-1" :title="log.user_agent || ''">
+                                        <Monitor class="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                        <span>{{ log.ip_address || '-' }}</span>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -435,9 +548,11 @@ const activeRoomName = computed(() => {
         <!-- Export CSV Filename Prompt Modal -->
         <div v-if="isExportModalOpen"
             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in-0">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div
+                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
                 <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-955/40">
+                <div
+                    class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-955/40">
                     <div class="flex items-center gap-2">
                         <FileSpreadsheet class="h-5 w-5 text-emerald-600" />
                         <h2 class="text-base font-bold text-slate-900 dark:text-white">Konfirmasi Ekspor CSV</h2>
@@ -452,58 +567,54 @@ const activeRoomName = computed(() => {
                 <!-- Modal Body -->
                 <div class="p-6 space-y-4 text-sm">
                     <p class="text-slate-600 dark:text-slate-400">
-                        Anda akan mengunduh data riwayat booking berdasarkan filter aktif saat ini. Silakan tinjau parameter ekspor berikut:
+                        Anda akan mengunduh data log aktivitas berdasarkan filter aktif saat ini. Silakan tinjau
+                        parameter
+                        ekspor berikut:
                     </p>
 
                     <!-- Filter Summary Cards -->
-                    <div class="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-lg space-y-2 text-xs">
+                    <div
+                        class="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-lg space-y-2 text-xs">
                         <div class="flex justify-between">
                             <span class="text-slate-400 font-semibold">Rentang Waktu:</span>
                             <span class="text-slate-700 dark:text-slate-300 font-bold">
-                                {{ startMonth ? formatDateDMY(startMonth + '-01').substring(3) : 'Awal' }} s.d.
-                                {{ endMonth ? formatDateDMY(endMonth + '-01').substring(3) : 'Akhir' }}
+                                {{ startMonth ? startMonth : 'Awal' }} s.d. {{ endMonth ? endMonth : 'Akhir' }}
                             </span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-slate-400 font-semibold">Ruangan:</span>
-                            <span class="text-slate-700 dark:text-slate-300 font-bold">{{ activeRoomName }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400 font-semibold">Lantai:</span>
+                            <span class="text-slate-400 font-semibold">Filter Aksi:</span>
                             <span class="text-slate-700 dark:text-slate-300 font-bold">
-                                {{ floorFilter === 'all' ? 'Semua Lantai' : 'Lantai ' + floorFilter }}
+                                {{ actionFilter === 'all' ? 'Semua Aksi' : translateAction(actionFilter) }}
                             </span>
                         </div>
-                        <div class="flex justify-between border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5 mt-1.5">
-                            <span class="text-slate-400 font-semibold">Jumlah Data:</span>
-                            <span class="text-blue-900 dark:text-blue-400 font-bold">{{ bookings.total }} baris</span>
+                        <div
+                            class="flex justify-between border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5 mt-1.5">
+                            <span class="text-slate-400 font-semibold">Jumlah Baris Data:</span>
+                            <span class="text-blue-900 dark:text-blue-400 font-bold">{{ logs.total }} baris</span>
                         </div>
                     </div>
 
                     <!-- Filename Input -->
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block">Nama File Unduhan</label>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block">Nama File
+                            Unduhan</label>
                         <div class="flex items-center gap-1">
-                            <input
-                                v-model="exportFilename"
-                                type="text"
+                            <input v-model="exportFilename" type="text"
                                 class="w-full px-3 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600"
-                                placeholder="riwayat_booking"
-                            />
+                                placeholder="log_aktivitas" />
                             <span class="text-xs text-slate-400 font-semibold">.csv</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-955/40 flex items-center justify-end gap-3">
+                <div
+                    class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-955/40 flex items-center justify-end gap-3">
                     <Button variant="outline" class="cursor-pointer text-xs" @click="closeExportModal">
                         Batal
                     </Button>
-                    <Button
-                        @click="submitExport"
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer text-xs font-semibold"
-                    >
+                    <Button @click="submitExport"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer text-xs font-semibold">
                         Unduh CSV
                     </Button>
                 </div>

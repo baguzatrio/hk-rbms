@@ -287,25 +287,28 @@ const handleApprove = (booking: BookingItem) => {
 
 // Reject booking
 const handleReject = (booking: BookingItem) => {
+    const isApproved = booking.status === 'approved';
     Swal.fire({
-        title: 'Tolak Reservasi?',
-        text: `Berikan alasan penolakan untuk reservasi "${booking.title}":`,
+        title: isApproved ? 'Batalkan Reservasi?' : 'Tolak Reservasi?',
+        text: isApproved
+            ? `Berikan alasan pembatalan untuk reservasi "${booking.title}":`
+            : `Berikan alasan penolakan untuk reservasi "${booking.title}":`,
         icon: 'warning',
         input: 'textarea',
-        inputPlaceholder: 'Alasan penolakan (wajib diisi)...',
+        inputPlaceholder: isApproved ? 'Alasan pembatalan (wajib diisi)...' : 'Alasan penolakan (wajib diisi)...',
         inputAttributes: {
             required: 'true'
         },
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Tolak!',
+        confirmButtonText: isApproved ? 'Ya, Batalkan!' : 'Ya, Tolak!',
         cancelButtonText: 'Kembali',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         preConfirm: (value) => {
             if (!value) {
-                Swal.showValidationMessage('Alasan penolakan wajib diisi!');
+                Swal.showValidationMessage(isApproved ? 'Alasan pembatalan wajib diisi!' : 'Alasan penolakan wajib diisi!');
             }
 
             return value;
@@ -558,8 +561,8 @@ return;
                                         <!-- Reject Button -->
                                         <Button variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-905 dark:text-red-400 dark:hover:text-red-200"
-                                            title="Tolak" :disabled="booking.status !== 'pending'"
-                                            :class="{'opacity-30 cursor-not-allowed': booking.status !== 'pending'}"
+                                            :title="booking.status === 'approved' ? 'Batalkan' : 'Tolak'" :disabled="booking.status !== 'pending' && booking.status !== 'approved'"
+                                            :class="{'opacity-30 cursor-not-allowed': booking.status !== 'pending' && booking.status !== 'approved'}"
                                             @click="handleReject(booking)">
                                             <CloseIcon class="h-4 w-4" />
                                         </Button>

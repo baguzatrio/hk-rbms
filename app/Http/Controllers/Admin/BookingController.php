@@ -81,28 +81,28 @@ class BookingController extends Controller
 
         Cache::forget('pending_bookings_count');
 
-        $this->logAction('approve', $book);
-
         return back()->with('success', "Booking '{$book->title}' telah disetujui.");
     }
 
     public function reject(Request $request, Book $book)
     {
-        abort_if(!$book->isPending(), 422, 'Booking sudah diproses.');
+        // Izinkan pembatalan jika statusnya pending atau approved
+        abort_if(!in_array($book->status, ['pending', 'approved']), 422, 'Booking tidak dapat diproses.');
 
         $request->validate(['remarks' => 'required|string|max:500']);
+        $originalStatus = $book->status;
 
         $book->update([
-            'status'      => 'rejected',
-            'approved_by' => Auth::id(),
-            'remarks'     => $request->remarks,
+            'status'       => $originalStatus === 'approved' ? 'cancelled' : 'rejected',
+            'approved_by'  => Auth::id(),
+            'cancelled_at' => $originalStatus === 'approved' ? now() : null,
+            'remarks'      => $request->remarks,
         ]);
 
         Cache::forget('pending_bookings_count');
 
-        $this->logAction('reject', $book);
-
-        return back()->with('success', "Booking '{$book->title}' telah ditolak.");
+        $message = $originalStatus === 'approved' ? "Booking '{$book->title}' berhasil dibatalkan." : "Booking '{$book->title}' berhasil ditolak.";
+        return back()->with('success', $message);
     }
 
     public function bulkApprove(Request $request)
@@ -136,7 +136,6 @@ class BookingController extends Controller
                 'approved_at' => now(),
             ]);
 
-            $this->logAction('approve', $book);
             $approvedCount++;
         }
 
@@ -161,32 +160,22 @@ class BookingController extends Controller
             'remarks' => 'required|string|max:500',
         ]);
 
-        Book::whereIn('id', $request->ids)
+        $bookings = Book::whereIn('id', $request->ids)
             ->where('status', 'pending')
-            ->update([
+            ->get();
+
+        foreach ($bookings as $book) {
+            $book->update([
                 'status'      => 'rejected',
                 'approved_by' => Auth::id(),
                 'remarks'     => $request->remarks,
             ]);
 
+        }
+
         Cache::forget('pending_bookings_count');
 
         return back()->with('success', count($request->ids) . ' booking telah ditolak.');
-    }
-
-    private function logAction(string $action, Book $book): void
-    {
-        if (class_exists(\App\Models\Log::class)) {
-            \App\Models\Log::create([
-                'user_id'    => Auth::id(),
-                'action'     => $action,
-                'model_type' => Book::class,
-                'model_id'   => $book->id,
-                'description'=> "{$action} booking: {$book->title}",
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-            ]);
-        }
     }
 
     public function show(Book $book)
@@ -290,8 +279,6 @@ class BookingController extends Controller
             'approved_at'  => now(),
             'end_date'     => $validated['end_date'] ?? $validated['start_date'],
         ]);
-
-        $this->logAction('create & approve', $book);
 
         return redirect()->route('admin.bookings.index')
             ->with('success', 'Reservasi ruangan berhasil dibuat dan disetujui otomatis.');
