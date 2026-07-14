@@ -281,7 +281,7 @@ class BookingController extends Controller
         ]);
 
         return redirect()->route('admin.bookings.index')
-            ->with('success', 'Reservasi ruangan berhasil dibuat dan disetujui otomatis.');
+            ->with('success', 'Booking ruangan berhasil dibuat dan disetujui otomatis.');
     }
 }
 

@@ -94,7 +94,7 @@ const formatDateDMY = (dateStr: string) => {
                             {{ stats.pendingCount }}
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
-                            Reservasi menunggu diproses
+                            Booking menunggu diproses
                         </p>
                     </CardContent>
                 </Card>
@@ -176,7 +176,7 @@ const formatDateDMY = (dateStr: string) => {
                 </CardHeader>
                 <CardContent class="pt-4">
                     <div v-if="recentPending.length === 0" class="py-12 text-center text-sm text-muted-foreground">
-                        Tidak ada antrean persetujuan reservasi pending saat ini.
+                        Tidak ada antrean persetujuan booking pending saat ini.
                     </div>
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm">

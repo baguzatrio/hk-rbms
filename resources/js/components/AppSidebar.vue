@@ -10,8 +10,7 @@ import {
     Building2,
     Users,
     Building,
-    History,
-    Monitor
+    History
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';

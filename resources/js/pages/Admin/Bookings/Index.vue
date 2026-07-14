@@ -262,8 +262,8 @@ const closeDetailModal = () => {
 // Approve booking
 const handleApprove = (booking: BookingItem) => {
     Swal.fire({
-        title: 'Setujui Reservasi?',
-        text: `Apakah Anda yakin ingin menyetujui reservasi "${booking.title}"?`,
+        title: 'Setujui Booking?',
+        text: `Apakah Anda yakin ingin menyetujui booking "${booking.title}"?`,
         icon: 'question',
         input: 'text',
         inputPlaceholder: 'Tambahkan catatan persetujuan (opsional)...',
@@ -289,10 +289,10 @@ const handleApprove = (booking: BookingItem) => {
 const handleReject = (booking: BookingItem) => {
     const isApproved = booking.status === 'approved';
     Swal.fire({
-        title: isApproved ? 'Batalkan Reservasi?' : 'Tolak Reservasi?',
+        title: isApproved ? 'Batalkan Booking?' : 'Tolak Booking?',
         text: isApproved
-            ? `Berikan alasan pembatalan untuk reservasi "${booking.title}":`
-            : `Berikan alasan penolakan untuk reservasi "${booking.title}":`,
+            ? `Berikan alasan pembatalan untuk booking "${booking.title}":`
+            : `Berikan alasan penolakan untuk booking "${booking.title}":`,
         icon: 'warning',
         input: 'textarea',
         inputPlaceholder: isApproved ? 'Alasan pembatalan (wajib diisi)...' : 'Alasan penolakan (wajib diisi)...',
@@ -332,7 +332,7 @@ return;
 
     Swal.fire({
         title: 'Setujui Massal?',
-        text: `Apakah Anda yakin ingin menyetujui ${selectedIds.value.length} permohonan reservasi yang dipilih secara bersamaan?`,
+        text: `Apakah Anda yakin ingin menyetujui ${selectedIds.value.length} booking yang dipilih secara bersamaan?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
@@ -362,7 +362,7 @@ return;
 
     Swal.fire({
         title: 'Tolak Massal?',
-        text: `Masukkan alasan penolakan untuk ${selectedIds.value.length} reservasi yang dipilih:`,
+        text: `Masukkan alasan penolakan untuk ${selectedIds.value.length} booking yang dipilih:`,
         icon: 'warning',
         input: 'textarea',
         inputPlaceholder: 'Alasan penolakan massal (wajib diisi)...',
@@ -394,10 +394,29 @@ return;
         }
     });
 };
+
+const canShowCancel = (booking: BookingItem) => {
+    if (booking.status === 'pending') {
+        return true;
+    }
+
+    if (booking.status === 'approved') {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        const bookingDate = booking.end_date || booking.start_date;
+
+        return bookingDate >= todayStr;
+    }
+
+    return false;
+};
 </script>
 
 <template>
-    <Head title="Manajemen Reservasi Ruangan" />
+    <Head title="Manajemen Booking Ruangan" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6">
@@ -405,7 +424,7 @@ return;
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Manajemen Reservasi Ruangan
+                        Manajemen Booking Ruangan
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
@@ -413,7 +432,7 @@ return;
                         class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 shadow-xs cursor-pointer">
                         <Link href="/admin/bookings/create">
                             <CalendarPlus class="h-4 w-4" />
-                            Tambah Reservasi (Admin)
+                            Tambah Booking (Admin)
                         </Link>
                     </Button>
                 </div>
@@ -424,7 +443,7 @@ return;
                 class="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-between shadow-xs animate-in slide-in-from-top-2">
                 <span class="text-xs font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-2">
                     <span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
-                    {{ selectedIds.length }} Reservasi Pending dipilih
+                    {{ selectedIds.length }} Booking Pending dipilih
                 </span>
                 <div class="flex items-center gap-2">
                     <Button size="sm" class="bg-green-600 hover:bg-green-750 text-white text-xs gap-1 cursor-pointer"
@@ -524,14 +543,14 @@ return;
                                 <td colspan="8" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                                        <p class="text-sm text-slate-700 dark:text-slate-300">Tidak ada reservasi ditemukan</p>
+                                        <p class="text-sm text-slate-700 dark:text-slate-300">Tidak ada booking ditemukan</p>
                                         <p class="text-xs text-muted-foreground mt-1">Coba sesuaikan kata kunci pencarian atau filter.</p>
                                     </div>
                                 </td>
                             </tr>
                             <!-- Data Row -->
                             <tr v-else v-for="(booking, i) in bookings.data" :key="booking.id"
-                                class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-800/10"
+                                class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-850/10"
                                 :class="{'bg-blue-50/10 dark:bg-blue-950/5': selectedIds.includes(booking.id)}">
                                 <td class="p-4 text-center">
                                     <input v-if="booking.status === 'pending'" type="checkbox"
@@ -547,22 +566,20 @@ return;
                                         <!-- Detail Button -->
                                         <Button variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
-                                            title="Detail Reservasi" @click="openDetailModal(booking.id)">
+                                            title="Detail Booking" @click="openDetailModal(booking.id)">
                                             <Eye class="h-4 w-4" />
                                         </Button>
                                         <!-- Approve Button -->
-                                        <Button variant="ghost" size="icon"
+                                        <Button v-if="booking.status === 'pending'" variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200"
-                                            title="Setujui" :disabled="booking.status !== 'pending'"
-                                            :class="{'opacity-30 cursor-not-allowed': booking.status !== 'pending'}"
+                                            title="Setujui"
                                             @click="handleApprove(booking)">
                                             <Check class="h-4 w-4" />
                                         </Button>
-                                        <!-- Reject Button -->
-                                        <Button variant="ghost" size="icon"
+                                        <!-- Reject/Cancel Button -->
+                                        <Button v-if="canShowCancel(booking)" variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-905 dark:text-red-400 dark:hover:text-red-200"
-                                            :title="booking.status === 'approved' ? 'Batalkan' : 'Tolak'" :disabled="booking.status !== 'pending' && booking.status !== 'approved'"
-                                            :class="{'opacity-30 cursor-not-allowed': booking.status !== 'pending' && booking.status !== 'approved'}"
+                                            :title="booking.status === 'approved' ? 'Batalkan' : 'Tolak'"
                                             @click="handleReject(booking)">
                                             <CloseIcon class="h-4 w-4" />
                                         </Button>
@@ -617,7 +634,7 @@ return;
                     class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
                     <div class="flex items-center gap-2">
                         <ClipboardList class="h-5 w-5 text-blue-900 dark:text-blue-400" />
-                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Detail Informasi Reservasi (Admin)</h2>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Detail Informasi Booking (Admin)</h2>
                     </div>
                     <Button variant="ghost" size="icon"
                         class="h-8 w-8 rounded-full cursor-pointer text-slate-400 hover:text-slate-955 dark:hover:text-white"
@@ -631,7 +648,7 @@ return;
                     <!-- Loading Spinner -->
                     <div v-if="isDetailLoading" class="py-16 flex flex-col justify-center items-center text-slate-500 dark:text-slate-400">
                         <Loader2 class="h-8 w-8 animate-spin text-blue-900 dark:text-blue-400 mb-2" />
-                        <span class="text-xs">Memuat detail reservasi...</span>
+                        <span class="text-xs">Memuat detail booking...</span>
                     </div>
 
                     <!-- Booking Details -->
@@ -639,7 +656,7 @@ return;
                         <!-- Card Status -->
                         <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800/80 rounded-xl">
                             <div class="space-y-1">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Reservasi</span>
+                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Booking</span>
                                 <div class="pt-0.5">
                                     <Badge :class="getStatusBadge(activeBooking.status)" class="text-xs px-2.5 py-0.5 border font-bold capitalize">
                                         {{ translateStatus(activeBooking.status) }}

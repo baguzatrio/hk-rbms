@@ -494,7 +494,7 @@ return dateStr;
                         <div class="flex items-center justify-between">
                             <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
                                 <Calendar class="h-4 w-4 text-slate-400" />
-                                Riwayat Reservasi Rapat
+                                Riwayat Booking Rapat
                             </h3>
                             <Badge variant="outline"
                                 class="text-[10px] font-semibold border-slate-100 dark:border-slate-800">
@@ -506,13 +506,13 @@ return dateStr;
                         <div v-if="isBookingsLoading"
                             class="py-12 flex justify-center items-center text-slate-500 dark:text-slate-400">
                             <Loader2 class="h-6 w-6 animate-spin mr-2" />
-                            <span class="text-xs">Memuat riwayat reservasi...</span>
+                            <span class="text-xs">Memuat riwayat booking...</span>
                         </div>
 
                         <!-- Empty Bookings -->
                         <div v-else-if="userBookings.length === 0"
                             class="py-8 text-center text-xs text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                            Belum ada riwayat reservasi yang diajukan oleh pengguna ini.
+                            Belum ada riwayat booking yang diajukan oleh pengguna ini.
                         </div>
 
                         <!-- Bookings Table -->

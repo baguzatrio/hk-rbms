@@ -28,7 +28,7 @@ const props = defineProps<{
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin Dashboard', href: '/dashboard' },
     { title: 'Booking Management', href: '/admin/bookings' },
-    { title: 'Tambah Reservasi', href: '/admin/bookings/create' },
+    { title: 'Tambah Booking', href: '/admin/bookings/create' },
 ];
 
 // Helper to get local date string in YYYY-MM-DD format
@@ -141,7 +141,7 @@ const submit = () => {
 
 <template>
 
-    <Head title="Tambah Reservasi (Admin)" />
+    <Head title="Tambah Booking (Admin)" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6">
@@ -155,7 +155,7 @@ const submit = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Tambah Reservasi Baru (Admin)
+                        Tambah Booking Baru (Admin)
                     </h1>
                 </div>
             </div>
@@ -163,7 +163,7 @@ const submit = () => {
             <!-- Form Card -->
             <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Form Tambah Data Reservasi (Auto-Approved)</CardTitle>
+                    <CardTitle class="text-base font-bold">Form Tambah Data Booking (Auto-Approved)</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">
@@ -252,7 +252,7 @@ const submit = () => {
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer gap-2">
                                 <Loader2 v-if="form.processing" class="h-4 w-4 animate-spin" />
                                 <CalendarPlus v-else class="h-4 w-4" />
-                                Buat Reservasi
+                                Buat Booking
                             </Button>
                         </div>
                     </form>

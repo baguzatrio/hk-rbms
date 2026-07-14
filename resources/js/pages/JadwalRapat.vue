@@ -682,7 +682,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                         class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer gap-2"
                         @click="goToCreateBooking(selectedCalendarDate!)">
                         <CalendarIcon class="h-4 w-4" />
-                        Buat Reservasi di Tanggal Ini
+                        Buat Booking di Tanggal Ini
                     </Button>
                 </div>
             </div>

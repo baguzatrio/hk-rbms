@@ -25,23 +25,23 @@ class Book extends Model
     public function beforeActivityLogged(Activity $activity, string $eventName)
     {
         if ($eventName === 'created') {
-            $activity->description = "Membuat pengajuan reservasi: {$this->title}";
+            $activity->description = "Membuat pengajuan booking: {$this->title}";
         }
 
         if ($eventName === 'updated') {
             if ($this->isDirty('status')) {
                 $status = $this->status;
                 if ($status === 'approved') {
-                    $activity->description = "Menyetujui reservasi: {$this->title}";
+                    $activity->description = "Menyetujui booking: {$this->title}";
                     $activity->event = 'approved';
                 } elseif ($status === 'rejected') {
-                    $activity->description = "Menolak reservasi: {$this->title}";
+                    $activity->description = "Menolak booking: {$this->title}";
                     $activity->event = 'rejected';
                 } elseif ($status === 'cancelled') {
                     if ($this->getOriginal('status') === 'approved') {
-                        $activity->description = "Membatalkan reservasi yang telah disetujui: {$this->title}";
+                        $activity->description = "Membatalkan booking yang telah disetujui: {$this->title}";
                     } else {
-                        $activity->description = "Membatalkan reservasi: {$this->title}";
+                        $activity->description = "Membatalkan booking: {$this->title}";
                     }
                     $activity->event = 'cancelled';
                 }

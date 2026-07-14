@@ -28,7 +28,7 @@ const props = defineProps<{
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Booking Ruangan', href: '/bookings' },
-    { title: 'Buat Reservasi', href: '/bookings/create' },
+    { title: 'Buat Booking', href: '/bookings/create' },
 ];
 
 // Helper to get local date string in YYYY-MM-DD format
@@ -141,7 +141,7 @@ const submit = () => {
 
 <template>
 
-    <Head title="Request Reservasi Ruangan" />
+    <Head title="Request Booking Ruangan" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6">
@@ -155,7 +155,7 @@ const submit = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Request Reservasi Ruangan Baru
+                        Request Booking Ruangan Baru
                     </h1>
                 </div>
             </div>
@@ -163,7 +163,7 @@ const submit = () => {
             <!-- Form Card -->
             <Card class="border-slate-100 min-w-2xl dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
                 <CardHeader class="pb-4">
-                    <CardTitle class="text-base font-bold">Form Request Reservasi Ruangan</CardTitle>
+                    <CardTitle class="text-base font-bold">Form Request Booking Ruangan</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form @submit.prevent="submit" class="space-y-6">

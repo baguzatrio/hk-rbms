@@ -254,7 +254,7 @@ const qrCodeUrl = computed(() => {
                 class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-2xl p-6 shadow-xs flex flex-col items-center justify-center text-center">
                 <div class="mb-3">
                     <h4 class="text-sm font-bold text-slate-950 dark:text-white uppercase tracking-wider">
-                        Pindai Untuk Reservasi
+                        Pindai Untuk Booking
                     </h4>
                     <p class="text-xs text-slate-400 mt-1">
                         Informasi Jadwal Ruang Rapat

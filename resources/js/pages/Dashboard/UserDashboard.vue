@@ -143,15 +143,15 @@ return dateStr;
                     <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50">
                         <div class="flex items-center gap-2 text-blue-900 dark:text-blue-400">
                             <Clock class="h-5 w-5" />
-                            <CardTitle class="text-lg">Reservasi Saya</CardTitle>
+                            <CardTitle class="text-lg">Booking Saya</CardTitle>
                         </div>
                         <CardDescription>
-                            Status 10 reservasi ruangan terakhir Anda
+                            Status 10 booking ruangan terakhir Anda
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="pt-4 space-y-4">
                         <div v-if="myBookings.length === 0" class="py-8 text-center text-sm text-muted-foreground">
-                            Anda belum pernah membuat reservasi ruangan.
+                            Anda belum pernah membuat booking ruangan.
                         </div>
                         <div v-else class="divide-y divide-slate-100 dark:divide-slate-800/50">
                             <div v-for="booking in myBookings" :key="booking.id"

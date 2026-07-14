@@ -183,8 +183,8 @@ const closeDetailModal = () => {
 // Cancel booking
 const confirmCancel = (booking: BookingItem) => {
     Swal.fire({
-        title: 'Batalkan Reservasi?',
-        text: `Apakah Anda yakin ingin membatalkan reservasi "${booking.title}"? Tindakan ini tidak dapat dibatalkan.`,
+        title: 'Batalkan Booking?',
+        text: `Apakah Anda yakin ingin membatalkan booking "${booking.title}"? Tindakan ini tidak dapat dibatalkan.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -212,17 +212,17 @@ const confirmCancel = (booking: BookingItem) => {
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Reservasi Ruangan Saya
+                        Booking Ruangan Saya
                     </h1>
                     <p class="text-sm text-muted-foreground mt-1">
-                        Pantau status pengajuan reservasi ruang rapat Anda dan lakukan pembatalan mandiri.
+                        Pantau status pengajuan booking ruang rapat Anda dan lakukan pembatalan mandiri.
                     </p>
                 </div>
                 <Button as-child
                     class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 shadow-xs cursor-pointer">
                     <Link href="/bookings/create">
                         <CalendarPlus class="h-4 w-4" />
-                        Buat Reservasi
+                        Buat Booking
                     </Link>
                 </Button>
             </div>
@@ -273,7 +273,7 @@ const confirmCancel = (booking: BookingItem) => {
                                 <td colspan="6" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                                        <p class="text-sm text-slate-700 dark:text-slate-300">Belum ada data reservasi</p>
+                                        <p class="text-sm text-slate-700 dark:text-slate-300">Belum ada data booking</p>
                                         <p class="text-xs text-muted-foreground mt-1">Klik tombol di kanan atas untuk memesan ruangan.</p>
                                     </div>
                                 </td>
@@ -288,12 +288,12 @@ const confirmCancel = (booking: BookingItem) => {
                                     <div class="flex items-center gap-1">
                                         <Button variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
-                                            title="Detail Reservasi" @click="openDetailModal(booking.id)">
+                                            title="Detail Booking" @click="openDetailModal(booking.id)">
                                             <Eye class="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-905 dark:text-red-400 dark:hover:text-red-200"
-                                            title="Batalkan Reservasi" :disabled="!booking.can_cancel"
+                                            title="Batalkan Booking" :disabled="!booking.can_cancel"
                                             :class="{'opacity-40 cursor-not-allowed': !booking.can_cancel}"
                                             @click="confirmCancel(booking)">
                                             <Trash2 class="h-4 w-4" />
@@ -311,7 +311,7 @@ const confirmCancel = (booking: BookingItem) => {
                                         <Calendar class="h-3.5 w-3.5 text-slate-400" />
                                         <span>{{ formatDateDMY(booking.start_date) }}</span>
                                     </div>
-                                    <div class="flex items-center gap-1.5 text-[11px] mt-0.5 font-medium text-slate-600 dark:text-slate-400">
+                                    <div class="flex items-center gap-1.5 text-[11px] mt-0.5 font-medium text-slate-600 dark:text-slate-450">
                                         <Clock class="h-3.5 w-3.5 text-slate-400" />
                                         <span>{{ formatTime(booking.start_hour) }} - {{ formatTime(booking.finish_hour) }}</span>
                                     </div>
@@ -339,7 +339,7 @@ const confirmCancel = (booking: BookingItem) => {
                     class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
                     <div class="flex items-center gap-2">
                         <ClipboardList class="h-5 w-5 text-blue-900 dark:text-blue-400" />
-                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Detail Informasi Reservasi</h2>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Detail Informasi Booking</h2>
                     </div>
                     <Button variant="ghost" size="icon"
                         class="h-8 w-8 rounded-full cursor-pointer text-slate-400 hover:text-slate-950 dark:hover:text-white"
@@ -353,7 +353,7 @@ const confirmCancel = (booking: BookingItem) => {
                     <!-- Loading Spinner -->
                     <div v-if="isDetailLoading" class="py-16 flex flex-col justify-center items-center text-slate-500 dark:text-slate-400">
                         <Loader2 class="h-8 w-8 animate-spin text-blue-900 dark:text-blue-400 mb-2" />
-                        <span class="text-xs">Memuat detail reservasi...</span>
+                        <span class="text-xs">Memuat detail booking...</span>
                     </div>
 
                     <!-- Booking Details -->
@@ -361,7 +361,7 @@ const confirmCancel = (booking: BookingItem) => {
                         <!-- Card Status -->
                         <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800/80 rounded-xl">
                             <div class="space-y-1">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Reservasi</span>
+                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Booking</span>
                                 <div class="pt-0.5">
                                     <Badge :class="getStatusBadge(activeBooking.status)" class="text-xs px-2.5 py-0.5 border font-bold capitalize">
                                         {{ translateStatus(activeBooking.status) }}
