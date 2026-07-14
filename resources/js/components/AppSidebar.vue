@@ -10,7 +10,8 @@ import {
     Building2,
     Users,
     Building,
-    History
+    History,
+    Monitor
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -116,6 +117,11 @@ const adminMenu = computed<NavItem[]>(() => [
         href: admin.logs.index(),
         icon: History,
     },
+    // {
+    //     title: 'Display Ruangan',
+    //     href: '/admin/display',
+    //     icon: Monitor,
+    // },
 ]);
 
 const mainNavItems = computed(() => {

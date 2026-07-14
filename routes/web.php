@@ -62,7 +62,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Activity Log (read-only)
         Route::get('/logs',              [Admin\ActivityLogController::class, 'index'])->name('logs.index');
         Route::get('/logs/export',       [Admin\ActivityLogController::class, 'export'])->name('logs.export');
+
+        // TV Display Selection (Admin)
+        Route::get('/display',           [App\Http\Controllers\Admin\RoomDisplayController::class, 'index'])->name('display.index');
     });
 });
+
+// Public TV Display (Guest)
+Route::get('/display/{room}',            [App\Http\Controllers\RoomDisplayController::class, 'show'])->name('display.show');
 
 require __DIR__.'/settings.php';

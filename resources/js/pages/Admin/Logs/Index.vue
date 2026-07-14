@@ -220,7 +220,10 @@ const translateAction = (action: string) => {
 };
 
 const translateEvent = (event: string | null) => {
-    if (!event) return '-';
+    if (!event) {
+        return '-';
+    }
+
     const evLower = event.toLowerCase();
     const eventMap: Record<string, string> = {
         'created': 'Dibuat',
@@ -230,6 +233,7 @@ const translateEvent = (event: string | null) => {
         'rejected': 'Ditolak',
         'cancelled': 'Dibatalkan',
     };
+
     return eventMap[evLower] || event;
 };
 

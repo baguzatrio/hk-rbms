@@ -32,16 +32,16 @@ class Book extends Model
             if ($this->isDirty('status')) {
                 $status = $this->status;
                 if ($status === 'approved') {
-                    $activity->description = "Menyetujui booking: {$this->title}";
+                    $activity->description = "Menyetujui reservasi: {$this->title}";
                     $activity->event = 'approved';
                 } elseif ($status === 'rejected') {
-                    $activity->description = "Menolak booking: {$this->title}";
+                    $activity->description = "Menolak reservasi: {$this->title}";
                     $activity->event = 'rejected';
                 } elseif ($status === 'cancelled') {
                     if ($this->getOriginal('status') === 'approved') {
-                        $activity->description = "Membatalkan booking yang disetujui: {$this->title}";
+                        $activity->description = "Membatalkan reservasi yang telah disetujui: {$this->title}";
                     } else {
-                        $activity->description = "Membatalkan booking: {$this->title}";
+                        $activity->description = "Membatalkan reservasi: {$this->title}";
                     }
                     $activity->event = 'cancelled';
                 }
