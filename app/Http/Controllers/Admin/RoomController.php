@@ -10,32 +10,36 @@ use Inertia\Response;
 
 class RoomController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
-        $search = $request->input('search');
-        $perPage = $request->input('per_page', 10);
+        if ($request->wantsJson()) {
+            $search = $request->input('search');
+            $perPage = $request->input('per_page', 10);
 
-        if (!in_array($perPage, [10, 20, 30])) {
-            $perPage = 10;
+            if (!in_array($perPage, [10, 20, 30])) {
+                $perPage = 10;
+            }
+
+            $rooms = Room::latest()
+                ->when($search, function ($query, $search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('floor', 'like', "%{$search}%");
+                    });
+                })
+                ->paginate($perPage)
+                ->withQueryString();
+
+            return response()->json([
+                'rooms' => $rooms,
+                'filters' => [
+                    'search' => $search,
+                    'per_page' => (int) $perPage,
+                ],
+            ]);
         }
 
-        $rooms = Room::latest()
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('floor', 'like', "%{$search}%");
-                });
-            })
-            ->paginate($perPage)
-            ->withQueryString();
-
-        return Inertia::render('Admin/Rooms/Index', [
-            'rooms' => $rooms,
-            'filters' => [
-                'search' => $search,
-                'per_page' => (int) $perPage,
-            ],
-        ]);
+        return Inertia::render('Admin/Rooms/Index');
     }
 
     public function create(): Response
@@ -55,10 +59,12 @@ class RoomController extends Controller
             'photo_path'  => 'nullable|string',
         ]);
 
-        Room::create($validated);
+        $room = Room::create($validated);
 
-        return redirect()->route('admin.rooms.index')
-            ->with('success', 'Ruangan berhasil dibuat.');
+        return response()->json([
+            'message' => 'Ruangan berhasil dibuat.',
+            'data' => $room,
+        ], 201);
     }
 
     public function show(Room $room): Response
@@ -89,15 +95,18 @@ class RoomController extends Controller
 
         $room->update($validated);
 
-        return redirect()->route('admin.rooms.index')
-            ->with('success', 'Ruangan berhasil diupdate.');
+        return response()->json([
+            'message' => 'Ruangan berhasil diupdate.',
+            'data' => $room,
+        ], 200);
     }
 
     public function destroy(Room $room)
     {
         $room->delete();
 
-        return redirect()->route('admin.rooms.index')
-            ->with('success', 'Ruangan berhasil dihapus.');
+        return response()->json([
+            'message' => 'Ruangan berhasil dihapus.',
+        ], 200);
     }
 }

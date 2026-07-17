@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
-import { computed } from 'vue';
+import Swal from 'sweetalert2';
+import { ref, computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -32,13 +34,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const form = useForm({
+const form = ref({
     name: '',
     email: '',
     password: '',
     role: 'user',
     organization_id: null as number | null,
 });
+
+const errors = ref<Record<string, string>>({});
+const isSubmitting = ref(false);
 
 const orgOptions = computed(() => {
     return props.organizations.map(org => ({
@@ -48,8 +53,43 @@ const orgOptions = computed(() => {
     }));
 });
 
-const submit = () => {
-    form.post('/admin/users');
+const submit = async () => {
+    isSubmitting.value = true;
+    errors.value = {};
+
+    try {
+        const response = await axios.post('/api/admin/users', form.value);
+
+        Swal.fire({
+            title: 'Berhasil!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonColor: '#1e3a8a',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        });
+
+        router.visit('/admin/users');
+    } catch (err: any) {
+        if (err.response && err.response.status === 422) {
+            const validationErrors = err.response.data.errors;
+
+            for (const key in validationErrors) {
+                errors.value[key] = validationErrors[key][0];
+            }
+        } else {
+            Swal.fire({
+                title: 'Gagal!',
+                text: err.response?.data?.message || 'Terjadi kesalahan pada server.',
+                icon: 'error',
+                confirmButtonColor: '#1e3a8a',
+                background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+            });
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -87,7 +127,7 @@ const submit = () => {
                                 <Label for="name">Nama Lengkap</Label>
                                 <Input id="name" v-model="form.name" type="text" required placeholder="Nama Lengkap...."
                                     class="w-full" />
-                                <InputError :message="form.errors.name" />
+                                <InputError :message="errors.name" />
                             </div>
 
                             <!-- Email -->
@@ -95,7 +135,7 @@ const submit = () => {
                                 <Label for="email">Alamat Email</Label>
                                 <Input id="email" v-model="form.email" type="email" required placeholder="Email..."
                                     class="w-full" />
-                                <InputError :message="form.errors.email" />
+                                <InputError :message="errors.email" />
                             </div>
 
                             <!-- Password -->
@@ -103,7 +143,7 @@ const submit = () => {
                                 <Label for="password">Kata Sandi (Password)</Label>
                                 <Input id="password" v-model="form.password" type="password" required
                                     placeholder="Minimal 8 karakter" class="w-full" />
-                                <InputError :message="form.errors.password" />
+                                <InputError :message="errors.password" />
                             </div>
 
                             <!-- Role Dropdown -->
@@ -114,7 +154,7 @@ const submit = () => {
                                     <option value="user">User</option>
                                     <option value="admin">Administrator</option>
                                 </select>
-                                <InputError :message="form.errors.role" />
+                                <InputError :message="errors.role" />
                             </div>
 
                             <!-- Organization Dropdown -->
@@ -124,7 +164,7 @@ const submit = () => {
                                     placeholder="Pilih Divisi..."
                                     searchPlaceholder="Cari divisi berdasarkan nama atau singkatan..."
                                     clearText="Tanpa Divisi (None)" />
-                                <InputError :message="form.errors.organization_id" />
+                                <InputError :message="errors.organization_id" />
                             </div>
                         </div>
 
@@ -134,10 +174,10 @@ const submit = () => {
                             <Button as-child variant="ghost" class="cursor-pointer">
                                 <Link href="/admin/users">Batal</Link>
                             </Button>
-                            <Button type="submit" :disabled="form.processing"
+                            <Button type="submit" :disabled="isSubmitting"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs">
                                 <Save class="h-4 w-4" />
-                                <span>{{ form.processing ? 'Menyimpan...' : 'Simpan Pengguna' }}</span>
+                                <span>{{ isSubmitting ? 'Menyimpan...' : 'Simpan Pengguna' }}</span>
                             </Button>
                         </div>
                     </form>

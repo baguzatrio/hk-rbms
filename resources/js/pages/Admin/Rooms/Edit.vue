@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -35,7 +38,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const form = useForm({
+const form = ref({
     name: props.room.name,
     floor: props.room.floor,
     capacity: props.room.capacity,
@@ -43,8 +46,46 @@ const form = useForm({
     is_active: props.room.is_active,
 });
 
-const submit = () => {
-    form.put(`/admin/rooms/${props.room.id}`);
+const errors = ref<Record<string, string>>({});
+const isSubmitting = ref(false);
+
+const submit = async () => {
+    isSubmitting.value = true;
+    errors.value = {};
+
+    try {
+        const response = await axios.put(`/api/admin/rooms/${props.room.id}`, form.value);
+
+        Swal.fire({
+            title: 'Berhasil!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonColor: '#1e3a8a',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        });
+
+        router.visit('/admin/rooms');
+    } catch (err: any) {
+        if (err.response && err.response.status === 422) {
+            const validationErrors = err.response.data.errors;
+
+            for (const key in validationErrors) {
+                errors.value[key] = validationErrors[key][0];
+            }
+        } else {
+            Swal.fire({
+                title: 'Gagal!',
+                text: err.response?.data?.message || 'Terjadi kesalahan pada server.',
+                icon: 'error',
+                confirmButtonColor: '#1e3a8a',
+                background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+            });
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -82,7 +123,7 @@ const submit = () => {
                                 <Label for="name">Nama Ruangan</Label>
                                 <Input id="name" v-model="form.name" type="text" required placeholder="Nama..."
                                     class="w-full" />
-                                <InputError :message="form.errors.name" />
+                                <InputError :message="errors.name" />
                             </div>
 
                             <!-- Floor -->
@@ -90,7 +131,7 @@ const submit = () => {
                                 <Label for="floor">Lantai</Label>
                                 <Input id="floor" v-model="form.floor" type="text" required placeholder="Lantai..."
                                     class="w-full" />
-                                <InputError :message="form.errors.floor" />
+                                <InputError :message="errors.floor" />
                             </div>
 
                             <!-- Capacity -->
@@ -98,7 +139,7 @@ const submit = () => {
                                 <Label for="capacity">Kapasitas (Orang)</Label>
                                 <Input id="capacity" v-model="form.capacity" type="number" min="1" required
                                     placeholder="Contoh: 10" class="w-full" />
-                                <InputError :message="form.errors.capacity" />
+                                <InputError :message="errors.capacity" />
                             </div>
 
                             <!-- Status Aktif (Switch/Toggle) -->
@@ -117,7 +158,7 @@ const submit = () => {
                                         {{ form.is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 </div>
-                                <InputError :message="form.errors.is_active" />
+                                <InputError :message="errors.is_active" />
                             </div>
                         </div>
 
@@ -126,7 +167,7 @@ const submit = () => {
                             <Label for="description">Deskripsi Ruangan</Label>
                             <textarea id="description" v-model="form.description" rows="3" placeholder="..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
-                            <InputError :message="form.errors.description" />
+                            <InputError :message="errors.description" />
                         </div>
 
 
@@ -136,10 +177,10 @@ const submit = () => {
                             <Button as-child variant="ghost" class="cursor-pointer">
                                 <Link href="/admin/rooms">Batal</Link>
                             </Button>
-                            <Button type="submit" :disabled="form.processing"
+                            <Button type="submit" :disabled="isSubmitting"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs">
                                 <Save class="h-4 w-4" />
-                                <span>{{ form.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
+                                <span>{{ isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
                             </Button>
                         </div>
                     </form>

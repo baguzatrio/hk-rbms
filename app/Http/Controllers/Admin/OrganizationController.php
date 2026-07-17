@@ -10,34 +10,38 @@ use Inertia\Response;
 
 class OrganizationController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
-        $search = $request->input('search');
-        $perPage = $request->input('per_page', 10);
+        if ($request->wantsJson()) {
+            $search = $request->input('search');
+            $perPage = $request->input('per_page', 10);
 
-        if (!in_array($perPage, [10, 20, 30])) {
-            $perPage = 10;
+            if (!in_array($perPage, [10, 20, 30])) {
+                $perPage = 10;
+            }
+
+            $organizations = Organization::query()
+                ->withCount('users')
+                ->when($search, function ($query, $search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('shortname', 'like', "%{$search}%");
+                    });
+                })
+                ->latest()
+                ->paginate($perPage)
+                ->withQueryString();
+
+            return response()->json([
+                'organizations' => $organizations,
+                'filters' => [
+                    'search' => $search,
+                    'per_page' => (int) $perPage,
+                ],
+            ]);
         }
 
-        $organizations = Organization::query()
-            ->withCount('users')
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('shortname', 'like', "%{$search}%");
-                });
-            })
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
-
-        return Inertia::render('Admin/Organizations/Index', [
-            'organizations' => $organizations,
-            'filters' => [
-                'search' => $search,
-                'per_page' => (int) $perPage,
-            ],
-        ]);
+        return Inertia::render('Admin/Organizations/Index');
     }
 
     public function create(): Response
@@ -52,10 +56,12 @@ class OrganizationController extends Controller
             'shortname' => 'required|string|max:50|unique:organizations,shortname',
         ]);
 
-        Organization::create($validated);
+        $organization = Organization::create($validated);
 
-        return redirect()->route('admin.organizations.index')
-            ->with('success', 'Organisasi berhasil dibuat.');
+        return response()->json([
+            'message' => 'Organisasi berhasil dibuat.',
+            'data' => $organization,
+        ], 201);
     }
 
     public function edit(Organization $organization): Response
@@ -74,15 +80,18 @@ class OrganizationController extends Controller
 
         $organization->update($validated);
 
-        return redirect()->route('admin.organizations.index')
-            ->with('success', 'Organisasi berhasil diupdate.');
+        return response()->json([
+            'message' => 'Organisasi berhasil diupdate.',
+            'data' => $organization,
+        ], 200);
     }
 
     public function destroy(Organization $organization)
     {
         $organization->delete();
 
-        return redirect()->route('admin.organizations.index')
-            ->with('success', 'Organisasi berhasil dihapus.');
+        return response()->json([
+            'message' => 'Organisasi berhasil dihapus.',
+        ], 200);
     }
 }

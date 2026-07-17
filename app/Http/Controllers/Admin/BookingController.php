@@ -14,42 +14,48 @@ use Inertia\Response;
 
 class BookingController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
-        $query = Book::with(['room', 'requester.organization'])
-            ->latest();
+        if ($request->wantsJson()) {
+            $query = Book::with(['room', 'requester.organization'])
+                ->latest();
 
-        // Filter opsional
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('room_id')) {
-            $query->where('room_id', $request->room_id);
-        }
-        if ($request->filled('search')) {
-            $driver = \DB::connection()->getDriverName();
-            $likeOperator = $driver === 'pgsql' ? 'ilike' : 'like';
-            $query->where('title', $likeOperator, "%{$request->search}%");
+            // Filter opsional
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+            if ($request->filled('room_id')) {
+                $query->where('room_id', $request->room_id);
+            }
+            if ($request->filled('search')) {
+                $driver = \DB::connection()->getDriverName();
+                $likeOperator = $driver === 'pgsql' ? 'ilike' : 'like';
+                $query->where('title', $likeOperator, "%{$request->search}%");
+            }
+
+            return response()->json([
+                'bookings' => $query->paginate(15)->through(fn($b) => [
+                    'id'          => $b->id,
+                    'title'       => $b->title,
+                    'status'      => $b->status,
+                    'start_date'  => $b->start_date->format('Y-m-d'),
+                    'end_date'    => $b->end_date?->format('Y-m-d'),
+                    'start_hour'  => $b->start_hour,
+                    'finish_hour' => $b->finish_hour,
+                    'notes'       => $b->notes,
+                    'room'        => ['id' => $b->room->id, 'name' => $b->room->name],
+                    'requester'   => [
+                        'id'   => $b->requester->id,
+                        'name' => $b->requester->name,
+                        'org'  => $b->requester->organization?->shortname,
+                    ],
+                ]),
+                'filters' => $request->only(['status', 'room_id', 'search']),
+                'rooms'   => Room::active()->select('id', 'name')->get(),
+            ]);
         }
 
         return Inertia::render('Admin/Bookings/Index', [
-            'bookings' => $query->paginate(15)->through(fn($b) => [
-                'id'          => $b->id,
-                'title'       => $b->title,
-                'status'      => $b->status,
-                'start_date'  => $b->start_date->format('Y-m-d'),
-                'end_date'    => $b->end_date?->format('Y-m-d'),
-                'start_hour'  => $b->start_hour,
-                'finish_hour' => $b->finish_hour,
-                'notes'       => $b->notes,
-                'room'        => ['id' => $b->room->id, 'name' => $b->room->name],
-                'requester'   => [
-                    'id'   => $b->requester->id,
-                    'name' => $b->requester->name,
-                    'org'  => $b->requester->organization?->shortname,
-                ],
-            ]),
-            'filters' => $request->only(['status', 'room_id', 'search']),
             'rooms'   => Room::active()->select('id', 'name')->get(),
         ]);
     }
@@ -67,9 +73,10 @@ class BookingController extends Controller
             $book->finish_hour,
             $book->id
         )) {
-            return back()->withErrors([
-                'error' => "Gagal menyetujui. Ruangan '{$book->room->name}' sudah dipesan pada tanggal dan jam tersebut."
-            ]);
+            return response()->json([
+                'message' => "Gagal menyetujui. Ruangan '{$book->room->name}' sudah dipesan pada tanggal dan jam tersebut.",
+                'errors' => ['error' => ["Gagal menyetujui. Ruangan '{$book->room->name}' sudah dipesan pada tanggal dan jam tersebut."]],
+            ], 422);
         }
 
         $book->update([
@@ -81,7 +88,10 @@ class BookingController extends Controller
 
         Cache::forget('pending_bookings_count');
 
-        return back()->with('success', "Booking '{$book->title}' telah disetujui.");
+        return response()->json([
+            'message' => "Booking '{$book->title}' telah disetujui.",
+            'data' => $book,
+        ], 200);
     }
 
     public function reject(Request $request, Book $book)
@@ -102,7 +112,10 @@ class BookingController extends Controller
         Cache::forget('pending_bookings_count');
 
         $message = $originalStatus === 'approved' ? "Booking '{$book->title}' berhasil dibatalkan." : "Booking '{$book->title}' berhasil ditolak.";
-        return back()->with('success', $message);
+        return response()->json([
+            'message' => $message,
+            'data' => $book,
+        ], 200);
     }
 
     public function bulkApprove(Request $request)
@@ -142,14 +155,16 @@ class BookingController extends Controller
         Cache::forget('pending_bookings_count');
 
         if (count($errors) > 0) {
-            if ($approvedCount > 0) {
-                return back()->with('success', "{$approvedCount} booking berhasil disetujui.")
-                    ->withErrors(['error' => implode("\n", $errors)]);
-            }
-            return back()->withErrors(['error' => implode("\n", $errors)]);
+            return response()->json([
+                'message' => "Beberapa booking bentrok.",
+                'approved_count' => $approvedCount,
+                'errors' => $errors,
+            ], 422);
         }
 
-        return back()->with('success', count($request->ids) . ' booking telah disetujui.');
+        return response()->json([
+            'message' => $approvedCount . ' booking telah disetujui.',
+        ], 200);
     }
 
     public function bulkReject(Request $request)
@@ -170,12 +185,13 @@ class BookingController extends Controller
                 'approved_by' => Auth::id(),
                 'remarks'     => $request->remarks,
             ]);
-
         }
 
         Cache::forget('pending_bookings_count');
 
-        return back()->with('success', count($request->ids) . ' booking telah ditolak.');
+        return response()->json([
+            'message' => count($request->ids) . ' booking telah ditolak.',
+        ], 200);
     }
 
     public function show(Book $book)
@@ -245,17 +261,19 @@ class BookingController extends Controller
         // Cek hari libur (Sabtu & Minggu)
         $startDate = \Carbon\Carbon::parse($validated['start_date']);
         if ($startDate->isWeekend()) {
-            return back()->withErrors([
-                'start_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
-            ])->withInput();
+            return response()->json([
+                'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                'errors' => ['start_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+            ], 422);
         }
 
         if (!empty($validated['end_date'])) {
             $endDate = \Carbon\Carbon::parse($validated['end_date']);
             if ($endDate->isWeekend()) {
-                return back()->withErrors([
-                    'end_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
-                ])->withInput();
+                return response()->json([
+                    'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                    'errors' => ['end_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+                ], 422);
             }
         }
 
@@ -266,9 +284,10 @@ class BookingController extends Controller
             $validated['start_hour'],
             $validated['finish_hour']
         )) {
-            return back()->withErrors([
-                'start_date' => 'Ruangan sudah dipesan pada waktu tersebut.'
-            ]);
+            return response()->json([
+                'message' => 'Ruangan sudah dipesan pada waktu tersebut.',
+                'errors' => ['start_date' => ['Ruangan sudah dipesan pada waktu tersebut.']],
+            ], 422);
         }
 
         $book = Book::create([
@@ -280,8 +299,10 @@ class BookingController extends Controller
             'end_date'     => $validated['end_date'] ?? $validated['start_date'],
         ]);
 
-        return redirect()->route('admin.bookings.index')
-            ->with('success', 'Booking ruangan berhasil dibuat dan disetujui otomatis.');
+        return response()->json([
+            'message' => 'Booking ruangan berhasil dibuat dan disetujui otomatis.',
+            'data' => $book,
+        ], 201);
     }
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     Plus,
     Building2,
@@ -37,7 +38,7 @@ interface PaginatedOrganizations {
 }
 
 const props = defineProps<{
-    organizations: PaginatedOrganizations;
+    organizations?: PaginatedOrganizations;
     filters?: {
         search?: string;
         per_page?: number;
@@ -56,15 +57,44 @@ const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
 let searchTimeout: any = null;
 
-const performSearch = () => {
-    router.get('/admin/organizations', {
-        search: searchQuery.value,
-        per_page: perPage.value,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true
-    });
+const organizationsData = ref<PaginatedOrganizations>({
+    data: props.organizations?.data || [],
+    links: props.organizations?.links || [],
+    current_page: props.organizations?.current_page || 1,
+    per_page: props.organizations?.per_page || 10,
+    last_page: props.organizations?.last_page || 1,
+    total: props.organizations?.total || 0,
+});
+
+const isLoading = ref(false);
+
+const fetchOrganizations = async (pageNumber = 1) => {
+    isLoading.value = true;
+
+    try {
+        const response = await axios.get('/api/admin/organizations', {
+            params: {
+                page: pageNumber,
+                search: searchQuery.value || undefined,
+                per_page: perPage.value || undefined,
+            },
+        });
+
+        organizationsData.value = response.data.organizations;
+    } catch (err) {
+        console.error('Error fetching organizations:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageClick = (url: string) => {
+    const urlObj = new URL(url);
+    const pageParam = urlObj.searchParams.get('page');
+
+    if (pageParam) {
+        fetchOrganizations(parseInt(pageParam));
+    }
 };
 
 watch(searchQuery, () => {
@@ -73,12 +103,12 @@ watch(searchQuery, () => {
     }
 
     searchTimeout = setTimeout(() => {
-        performSearch();
+        fetchOrganizations(1);
     }, 300);
 });
 
 watch(perPage, () => {
-    performSearch();
+    fetchOrganizations(1);
 });
 
 const checkFlashMessages = () => {
@@ -108,7 +138,11 @@ const checkFlashMessages = () => {
     }
 };
 
-onMounted(checkFlashMessages);
+onMounted(() => {
+    fetchOrganizations(organizationsData.value.current_page);
+    checkFlashMessages();
+});
+
 watch(() => page.props.flash, checkFlashMessages, { deep: true });
 watch(() => page.props.errors, checkFlashMessages, { deep: true });
 
@@ -124,11 +158,31 @@ const confirmDelete = (org: OrganizationItem) => {
         cancelButtonText: 'Batal',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(`/admin/organizations/${org.id}`, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.delete(`/admin/organizations/${org.id}`);
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchOrganizations(organizationsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat menghapus data.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -198,16 +252,16 @@ const cleanLabel = (label: string) => {
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="organizations.links.length > 0" class="flex items-center gap-1">
-                        <template v-for="(link, k) in organizations.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
+                    <div v-if="organizationsData.links.length > 0" class="flex items-center gap-1">
+                        <template v-for="(link, k) in organizationsData.links" :key="k">
+                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
                                     'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
                                     'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
                                 }">
                                 <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
+                            </button>
                             <span v-else v-html="cleanLabel(link.label)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
                         </template>
@@ -228,7 +282,7 @@ const cleanLabel = (label: string) => {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="organizations.data.length === 0">
+                            <tr v-if="organizationsData.data.length === 0">
                                 <td colspan="5" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Building2 class="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -240,10 +294,10 @@ const cleanLabel = (label: string) => {
                                 </td>
                             </tr>
                             <!-- Data Row -->
-                            <tr v-else v-for="(org, i) in organizations.data" :key="org.id"
+                            <tr v-else v-for="(org, i) in organizationsData.data" :key="org.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
                                 <td class="p-4 text-xs text-slate-500">
-                                    {{ (organizations.current_page - 1) * organizations.per_page + i + 1 }}
+                                    {{ (organizationsData.current_page - 1) * organizationsData.per_page + i + 1 }}
                                 </td>
                                 <!-- Actions column -->
                                 <td class="p-4">

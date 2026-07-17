@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowLeft, CalendarPlus, Loader2 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { computed, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -72,7 +72,7 @@ const roomOptions = computed(() => {
 });
 
 // Form fields setup
-const form = useForm({
+const form = ref({
     room_id: '' as string | number,
     title: '',
     start_date: getInitialDate(),
@@ -83,6 +83,9 @@ const form = useForm({
     participants: '',
     notes: '',
 });
+
+const errors = ref<Record<string, string>>({});
+const isSubmitting = ref(false);
 
 const isWeekend = (dateStr: string) => {
     if (!dateStr) {
@@ -95,10 +98,10 @@ const isWeekend = (dateStr: string) => {
     return day === 0 || day === 6; // 0: Sunday, 6: Saturday
 };
 
-watch(() => form.start_date, (newVal) => {
+watch(() => form.value.start_date, (newVal) => {
     if (isWeekend(newVal)) {
-        form.errors.start_date = 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).';
-        form.start_date = '';
+        errors.value.start_date = 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).';
+        form.value.start_date = '';
         Swal.fire({
             title: 'Hari Libur!',
             text: 'Pemesanan ruangan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
@@ -106,14 +109,14 @@ watch(() => form.start_date, (newVal) => {
             confirmButtonColor: '#1e3a8a',
         });
     } else {
-        form.errors.start_date = '';
+        errors.value.start_date = '';
     }
 });
 
-watch(() => form.end_date, (newVal) => {
+watch(() => form.value.end_date, (newVal) => {
     if (isWeekend(newVal)) {
-        form.errors.end_date = 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).';
-        form.end_date = '';
+        errors.value.end_date = 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).';
+        form.value.end_date = '';
         Swal.fire({
             title: 'Hari Libur!',
             text: 'Pemesanan ruangan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
@@ -121,21 +124,52 @@ watch(() => form.end_date, (newVal) => {
             confirmButtonColor: '#1e3a8a',
         });
     } else {
-        form.errors.end_date = '';
+        errors.value.end_date = '';
     }
 });
 
-const submit = () => {
+const submit = async () => {
     // If end_date is empty, default it to start_date
-    if (!form.end_date) {
-        form.end_date = form.start_date;
+    if (!form.value.end_date) {
+        form.value.end_date = form.value.start_date;
     }
 
-    form.post('/admin/bookings', {
-        onFinish: () => {
-            // no reset password fields needed
-        },
-    });
+    isSubmitting.value = true;
+    errors.value = {};
+
+    try {
+        const response = await axios.post('/api/admin/bookings', form.value);
+
+        Swal.fire({
+            title: 'Berhasil!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonColor: '#1e3a8a',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        });
+
+        router.visit('/admin/bookings');
+    } catch (err: any) {
+        if (err.response && err.response.status === 422) {
+            const validationErrors = err.response.data.errors;
+
+            for (const key in validationErrors) {
+                errors.value[key] = validationErrors[key][0];
+            }
+        } else {
+            Swal.fire({
+                title: 'Gagal!',
+                text: err.response?.data?.message || 'Terjadi kesalahan pada server.',
+                icon: 'error',
+                confirmButtonColor: '#1e3a8a',
+                background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+            });
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -174,7 +208,7 @@ const submit = () => {
                                 <SearchableSelect v-model="form.room_id" :options="roomOptions"
                                     placeholder="Pilih Ruangan..." search-placeholder="Cari nama ruangan..."
                                     :allow-clear="false" />
-                                <InputError :message="form.errors.room_id" />
+                                <InputError :message="errors.room_id" />
                             </div>
 
                             <!-- Title / Agenda Rapat -->
@@ -182,7 +216,7 @@ const submit = () => {
                                 <Label for="title">Nama Rapat / Agenda <span class="text-red-500">*</span></Label>
                                 <Input id="title" v-model="form.title" type="text"
                                     placeholder="Nama Kegiatan..." class="w-full" />
-                                <InputError :message="form.errors.title" />
+                                <InputError :message="errors.title" />
                             </div>
 
                             <!-- Tanggal Mulai -->
@@ -190,7 +224,7 @@ const submit = () => {
                                 <Label for="start_date">Tanggal Rapat <span class="text-red-500">*</span></Label>
                                 <Input id="start_date" v-model="form.start_date" type="date" :min="todayStr"
                                     class="w-full" />
-                                <InputError :message="form.errors.start_date" />
+                                <InputError :message="errors.start_date" />
                             </div>
 
                             <!-- Tanggal Selesai (Opsional) -->
@@ -198,14 +232,14 @@ const submit = () => {
                                 <Label for="end_date">Tanggal Selesai (Opsional)</Label>
                                 <Input id="end_date" v-model="form.end_date" type="date"
                                     :min="form.start_date || todayStr" :placeholder="form.start_date" class="w-full" />
-                                <InputError :message="form.errors.end_date" />
+                                <InputError :message="errors.end_date" />
                             </div>
 
                             <!-- Jam Mulai -->
                             <div class="grid gap-2">
                                 <Label for="start_hour">Jam Mulai <span class="text-red-500">*</span></Label>
                                 <Input id="start_hour" v-model="form.start_hour" type="time" class="w-full" />
-                                <InputError :message="form.errors.start_hour" />
+                                <InputError :message="errors.start_hour" />
                             </div>
 
                             <!-- Jam Selesai -->
@@ -213,7 +247,7 @@ const submit = () => {
                                 <Label for="finish_hour">Jam Selesai <span class="text-red-500">*</span></Label>
                                 <Input id="finish_hour" v-model="form.finish_hour" type="time"
                                     class="w-full" />
-                                <InputError :message="form.errors.finish_hour" />
+                                <InputError :message="errors.finish_hour" />
                             </div>
 
                             <!-- PIC Name -->
@@ -221,7 +255,7 @@ const submit = () => {
                                 <Label for="pic_name">Penanggung Jawab (PIC) <span class="text-red-500">*</span></Label>
                                 <Input id="pic_name" v-model="form.pic_name" type="text" placeholder="Nama PIC..."
                                     class="w-full" />
-                                <InputError :message="form.errors.pic_name" />
+                                <InputError :message="errors.pic_name" />
                             </div>
                         </div>
 
@@ -231,7 +265,7 @@ const submit = () => {
                             <textarea id="participants" v-model="form.participants" rows="3"
                                 placeholder="Divisi / Nama ..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
-                            <InputError :message="form.errors.participants" />
+                            <InputError :message="errors.participants" />
                         </div>
 
                         <!-- Notes / Agenda Rapat -->
@@ -239,7 +273,7 @@ const submit = () => {
                             <Label for="notes">Deskripsi Rapat / Catatan (Opsional)</Label>
                             <textarea id="notes" v-model="form.notes" rows="3" placeholder="Deskripsikan..."
                                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border-slate-200 dark:border-slate-800 focus:border-blue-900 focus:ring-blue-900"></textarea>
-                            <InputError :message="form.errors.notes" />
+                            <InputError :message="errors.notes" />
                         </div>
 
                         <!-- Submit Buttons -->
@@ -248,9 +282,9 @@ const submit = () => {
                             <Button as-child variant="outline" class="cursor-pointer">
                                 <Link href="/admin/bookings">Batal</Link>
                             </Button>
-                            <Button type="submit" :disabled="form.processing"
+                            <Button type="submit" :disabled="isSubmitting"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer gap-2">
-                                <Loader2 v-if="form.processing" class="h-4 w-4 animate-spin" />
+                                <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
                                 <CalendarPlus v-else class="h-4 w-4" />
                                 Buat Booking
                             </Button>

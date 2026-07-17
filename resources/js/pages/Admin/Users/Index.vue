@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     Plus,
     Users,
@@ -63,7 +64,7 @@ interface BookingItem {
 }
 
 const props = defineProps<{
-    users: PaginatedUsers;
+    users?: PaginatedUsers;
     filters?: {
         search?: string;
         per_page?: number;
@@ -89,15 +90,44 @@ const activeUser = ref<UserItem | null>(null);
 const userBookings = ref<BookingItem[]>([]);
 const isBookingsLoading = ref(false);
 
-const performSearch = () => {
-    router.get('/admin/users', {
-        search: searchQuery.value,
-        per_page: perPage.value,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true
-    });
+const usersData = ref<PaginatedUsers>({
+    data: props.users?.data || [],
+    links: props.users?.links || [],
+    current_page: props.users?.current_page || 1,
+    per_page: props.users?.per_page || 10,
+    last_page: props.users?.last_page || 1,
+    total: props.users?.total || 0,
+});
+
+const isLoading = ref(false);
+
+const fetchUsers = async (pageNumber = 1) => {
+    isLoading.value = true;
+
+    try {
+        const response = await axios.get('/api/admin/users', {
+            params: {
+                page: pageNumber,
+                search: searchQuery.value || undefined,
+                per_page: perPage.value || undefined,
+            },
+        });
+
+        usersData.value = response.data.users;
+    } catch (err) {
+        console.error('Error fetching users:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageClick = (url: string) => {
+    const urlObj = new URL(url);
+    const pageParam = urlObj.searchParams.get('page');
+
+    if (pageParam) {
+        fetchUsers(parseInt(pageParam));
+    }
 };
 
 watch(searchQuery, () => {
@@ -106,12 +136,12 @@ watch(searchQuery, () => {
     }
 
     searchTimeout = setTimeout(() => {
-        performSearch();
+        fetchUsers(1);
     }, 300);
 });
 
 watch(perPage, () => {
-    performSearch();
+    fetchUsers(1);
 });
 
 // Flash messages
@@ -142,7 +172,10 @@ const checkFlashMessages = () => {
     }
 };
 
-onMounted(checkFlashMessages);
+onMounted(() => {
+    fetchUsers(usersData.value.current_page);
+    checkFlashMessages();
+});
 watch(() => page.props.flash, checkFlashMessages, { deep: true });
 watch(() => page.props.errors, checkFlashMessages, { deep: true });
 
@@ -159,11 +192,31 @@ const confirmDelete = (user: UserItem) => {
         cancelButtonText: 'Batal',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(`/admin/users/${user.id}`, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.delete(`/api/admin/users/${user.id}`);
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchUsers(usersData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat menghapus data.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -186,7 +239,7 @@ const handleResetPassword = (user: UserItem) => {
         inputAttributes: {
             minlength: '8',
             autocapitalize: 'off',
-            autocorrect: 'off'
+            autocorrect: 'off',
         },
         inputValidator: (value) => {
             if (!value) {
@@ -196,14 +249,32 @@ const handleResetPassword = (user: UserItem) => {
             if (value.length < 8) {
                 return 'Password minimal 8 karakter!';
             }
-        }
-    }).then((result) => {
+        },
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.patch(`/admin/users/${user.id}/reset-password`, {
-                password: result.value
-            }, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.patch(`/api/admin/users/${user.id}/reset-password`, {
+                    password: result.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat mereset password.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -216,11 +287,9 @@ const openDetailModal = async (user: UserItem) => {
     userBookings.value = [];
 
     try {
-        const response = await fetch(`/admin/users/${user.id}/bookings`);
+        const response = await axios.get(`/api/admin/users/${user.id}/bookings`);
 
-        if (response.ok) {
-            userBookings.value = await response.json();
-        }
+        userBookings.value = response.data;
     } catch (err) {
         console.error('Error fetching bookings:', err);
     } finally {
@@ -337,16 +406,16 @@ return dateStr;
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="users.links.length > 0" class="flex items-center gap-1">
-                        <template v-for="(link, k) in users.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
+                    <div v-if="usersData.links.length > 0" class="flex items-center gap-1">
+                        <template v-for="(link, k) in usersData.links" :key="k">
+                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
                                     'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
                                     'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
                                 }">
                                 <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
+                            </button>
                             <span v-else v-html="cleanLabel(link.label)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
                         </template>
@@ -368,7 +437,7 @@ return dateStr;
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="users.data.length === 0">
+                            <tr v-if="usersData.data.length === 0">
                                 <td colspan="6" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Users class="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -380,10 +449,10 @@ return dateStr;
                                 </td>
                             </tr>
                             <!-- Data Row -->
-                            <tr v-else v-for="(user, i) in users.data" :key="user.id"
+                            <tr v-else v-for="(user, i) in usersData.data" :key="user.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
                                 <td class="p-4 text-xs text-slate-500">
-                                    {{ (users.current_page - 1) * users.per_page + i + 1 }}
+                                    {{ (usersData.current_page - 1) * usersData.per_page + i + 1 }}
                                 </td>
                                 <!-- Actions column at the left right after number -->
                                 <td class="p-4">

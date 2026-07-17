@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     Plus,
     Building2,
@@ -42,7 +43,7 @@ interface PaginatedRooms {
 }
 
 const props = defineProps<{
-    rooms: PaginatedRooms;
+    rooms?: PaginatedRooms;
     filters?: {
         search?: string;
         per_page?: number;
@@ -63,15 +64,44 @@ const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
 let searchTimeout: any = null;
 
-const performSearch = () => {
-    router.get('/admin/rooms', {
-        search: searchQuery.value || undefined,
-        per_page: perPage.value === 10 ? undefined : perPage.value,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true
-    });
+const roomsData = ref<PaginatedRooms>({
+    data: props.rooms?.data || [],
+    links: props.rooms?.links || [],
+    current_page: props.rooms?.current_page || 1,
+    per_page: props.rooms?.per_page || 10,
+    last_page: props.rooms?.last_page || 1,
+    total: props.rooms?.total || 0,
+});
+
+const isLoading = ref(false);
+
+const fetchRooms = async (pageNumber = 1) => {
+    isLoading.value = true;
+
+    try {
+        const response = await axios.get('/api/admin/rooms', {
+            params: {
+                page: pageNumber,
+                search: searchQuery.value || undefined,
+                per_page: perPage.value || undefined,
+            },
+        });
+
+        roomsData.value = response.data.rooms;
+    } catch (err) {
+        console.error('Error fetching rooms:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageClick = (url: string) => {
+    const urlObj = new URL(url);
+    const pageParam = urlObj.searchParams.get('page');
+
+    if (pageParam) {
+        fetchRooms(parseInt(pageParam));
+    }
 };
 
 watch(searchQuery, () => {
@@ -80,12 +110,12 @@ watch(searchQuery, () => {
     }
 
     searchTimeout = setTimeout(() => {
-        performSearch();
+        fetchRooms(1);
     }, 300);
 });
 
 watch(perPage, () => {
-    performSearch();
+    fetchRooms(1);
 });
 
 // Success/Error notifications from session flash
@@ -115,7 +145,11 @@ const checkFlashMessages = () => {
     }
 };
 
-onMounted(checkFlashMessages);
+onMounted(() => {
+    fetchRooms(roomsData.value.current_page);
+    checkFlashMessages();
+});
+
 watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Confirm Delete Room
@@ -131,11 +165,31 @@ const confirmDelete = (room: Room) => {
         cancelButtonText: 'Batal',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(`/admin/rooms/${room.id}`, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.delete(`/api/admin/rooms/${room.id}`);
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchRooms(roomsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat menghapus data.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -180,7 +234,7 @@ const cleanLabel = (label: string) => {
             </div>
 
             <!-- Empty State (No Rooms at all in DB and No Search Active) -->
-            <div v-if="rooms.data.length === 0 && !props.filters?.search"
+            <div v-if="roomsData.data.length === 0 && !searchQuery"
                 class="py-16 text-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl shadow-xs">
                 <Building2 class="h-10 w-10 text-slate-300 mx-auto mb-3" />
                 <p class="text-sm text-slate-700 dark:text-slate-300">Belum ada ruangan</p>
@@ -218,16 +272,16 @@ const cleanLabel = (label: string) => {
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="rooms.links.length > 0" class="flex items-center gap-1">
-                        <template v-for="(link, k) in rooms.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
+                    <div v-if="roomsData.links.length > 0" class="flex items-center gap-1">
+                        <template v-for="(link, k) in roomsData.links" :key="k">
+                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
                                     'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
                                     'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
                                 }">
                                 <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
+                            </button>
                             <span v-else v-html="cleanLabel(link.label)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
                         </template>
@@ -249,7 +303,7 @@ const cleanLabel = (label: string) => {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty Search Results in Table -->
-                            <tr v-if="rooms.data.length === 0">
+                            <tr v-if="roomsData.data.length === 0">
                                 <td colspan="6" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-6 text-center">
                                         <Building2 class="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -260,10 +314,10 @@ const cleanLabel = (label: string) => {
                                     </div>
                                 </td>
                             </tr>
-                            <tr v-else v-for="(room, i) in rooms.data" :key="room.id"
+                            <tr v-else v-for="(room, i) in roomsData.data" :key="room.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
                                 <td class="p-4 text-xs text-slate-500">
-                                    {{ (rooms.current_page - 1) * rooms.per_page + i + 1 }}
+                                    {{ (roomsData.current_page - 1) * roomsData.per_page + i + 1 }}
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-1">

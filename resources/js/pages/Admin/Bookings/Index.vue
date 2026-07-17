@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     CalendarPlus,
     Calendar,
@@ -65,7 +66,7 @@ interface PaginatedBookings {
 }
 
 const props = defineProps<{
-    bookings: PaginatedBookings;
+    bookings?: PaginatedBookings;
     filters?: {
         status?: string;
         room_id?: string;
@@ -94,14 +95,26 @@ const searchQuery = ref(props.filters?.search || '');
 
 // Selection state for Bulk Actions
 const selectedIds = ref<number[]>([]);
+
+const bookingsData = ref<PaginatedBookings>({
+    data: props.bookings?.data || [],
+    links: props.bookings?.links || [],
+    current_page: props.bookings?.current_page || 1,
+    per_page: props.bookings?.per_page || 15,
+    last_page: props.bookings?.last_page || 1,
+    total: props.bookings?.total || 0,
+});
+
+const isLoading = ref(false);
+
 const isAllSelected = computed(() => {
-    const pendingBookings = props.bookings.data.filter(b => b.status === 'pending');
+    const pendingBookings = bookingsData.value.data.filter(b => b.status === 'pending');
 
     return pendingBookings.length > 0 && pendingBookings.every(b => selectedIds.value.includes(b.id));
 });
 
 const toggleSelectAll = () => {
-    const pendingBookings = props.bookings.data.filter(b => b.status === 'pending');
+    const pendingBookings = bookingsData.value.data.filter(b => b.status === 'pending');
 
     if (isAllSelected.value) {
         // Deselect all pending bookings
@@ -125,28 +138,47 @@ const toggleSelect = (id: number) => {
     }
 };
 
+const fetchBookings = async (pageNumber = 1) => {
+    isLoading.value = true;
+    selectedIds.value = [];
+
+    try {
+        const response = await axios.get('/api/admin/bookings', {
+            params: {
+                page: pageNumber,
+                status: statusFilter.value || undefined,
+                room_id: roomFilter.value || undefined,
+                search: searchQuery.value || undefined,
+            },
+        });
+
+        bookingsData.value = response.data.bookings;
+    } catch (err) {
+        console.error('Error fetching bookings:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageClick = (url: string) => {
+    const urlObj = new URL(url);
+    const pageParam = urlObj.searchParams.get('page');
+
+    if (pageParam) {
+        fetchBookings(parseInt(pageParam));
+    }
+};
+
 // Debounced filter triggers
 let filterTimeout: any = null;
 const applyFilters = () => {
     clearTimeout(filterTimeout);
     filterTimeout = setTimeout(() => {
-        router.get('/admin/bookings', {
-            status: statusFilter.value || undefined,
-            room_id: roomFilter.value || undefined,
-            search: searchQuery.value || undefined,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, 150);
+        fetchBookings(1);
+    }, 200);
 };
 
 watch([statusFilter, roomFilter, searchQuery], applyFilters);
-
-// Clear selection when filters change or data reloads
-watch(() => props.bookings.data, () => {
-    selectedIds.value = [];
-});
 
 // Alert / Flash Messages
 const checkFlashMessages = () => {
@@ -176,7 +208,11 @@ const checkFlashMessages = () => {
     }
 };
 
-onMounted(checkFlashMessages);
+onMounted(() => {
+    fetchBookings(bookingsData.value.current_page);
+    checkFlashMessages();
+});
+
 watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Pagination label helper
@@ -221,14 +257,14 @@ const formatTime = (timeStr: string) => {
 
 const formatDateDMY = (dateStr: string) => {
     if (!dateStr) {
-return '';
-}
+        return '';
+    }
 
     const parts = dateStr.split('-');
 
     if (parts.length !== 3) {
-return dateStr;
-}
+        return dateStr;
+    }
 
     const [year, month, day] = parts;
 
@@ -242,11 +278,9 @@ const openDetailModal = async (id: number) => {
     activeBooking.value = null;
 
     try {
-        const response = await fetch(`/admin/bookings/${id}`);
+        const response = await axios.get(`/api/admin/bookings/${id}`);
 
-        if (response.ok) {
-            activeBooking.value = await response.json();
-        }
+        activeBooking.value = response.data;
     } catch (err) {
         console.error('Error fetching booking detail:', err);
     } finally {
@@ -274,13 +308,33 @@ const handleApprove = (booking: BookingItem) => {
         cancelButtonText: 'Kembali',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.patch(`/admin/bookings/${booking.id}/approve`, {
-                remarks: result.value || undefined
-            }, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.post(`/api/admin/bookings/${booking.id}/approve`, {
+                    remarks: result.value || undefined,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchBookings(bookingsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat menyetujui booking.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -297,7 +351,7 @@ const handleReject = (booking: BookingItem) => {
         input: 'textarea',
         inputPlaceholder: isApproved ? 'Alasan pembatalan (wajib diisi)...' : 'Alasan penolakan (wajib diisi)...',
         inputAttributes: {
-            required: 'true'
+            required: 'true',
         },
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -312,14 +366,34 @@ const handleReject = (booking: BookingItem) => {
             }
 
             return value;
-        }
-    }).then((result) => {
+        },
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.patch(`/admin/bookings/${booking.id}/reject`, {
-                remarks: result.value
-            }, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.post(`/api/admin/bookings/${booking.id}/reject`, {
+                    remarks: result.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchBookings(bookingsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat memproses booking.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -327,8 +401,8 @@ const handleReject = (booking: BookingItem) => {
 // Bulk Actions
 const handleBulkApprove = () => {
     if (selectedIds.value.length === 0) {
-return;
-}
+        return;
+    }
 
     Swal.fire({
         title: 'Setujui Massal?',
@@ -341,24 +415,42 @@ return;
         cancelButtonText: 'Batal',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.post('/admin/bookings/bulk-approve', {
-                ids: selectedIds.value
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    selectedIds.value = [];
-                }
-            });
+            try {
+                const response = await axios.post('/api/admin/bookings/bulk-approve', {
+                    ids: selectedIds.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                selectedIds.value = [];
+                fetchBookings(bookingsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat memproses persetujuan massal.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
 
 const handleBulkReject = () => {
     if (selectedIds.value.length === 0) {
-return;
-}
+        return;
+    }
 
     Swal.fire({
         title: 'Tolak Massal?',
@@ -379,18 +471,36 @@ return;
             }
 
             return value;
-        }
-    }).then((result) => {
+        },
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.post('/admin/bookings/bulk-reject', {
-                ids: selectedIds.value,
-                remarks: result.value
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    selectedIds.value = [];
-                }
-            });
+            try {
+                const response = await axios.post('/api/admin/bookings/bulk-reject', {
+                    ids: selectedIds.value,
+                    remarks: result.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                selectedIds.value = [];
+                fetchBookings(bookingsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat memproses penolakan massal.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -503,16 +613,16 @@ const canShowCancel = (booking: BookingItem) => {
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="bookings.links.length > 0" class="flex items-center gap-1 self-end lg:self-auto">
-                        <template v-for="(link, k) in bookings.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
+                    <div v-if="bookingsData.links.length > 0" class="flex items-center gap-1 self-end lg:self-auto">
+                        <template v-for="(link, k) in bookingsData.links" :key="k">
+                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
                                     'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
                                     'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
                                 }">
                                 <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
+                            </button>
                             <span v-else v-html="cleanLabel(link.label)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
                         </template>
@@ -529,7 +639,7 @@ const canShowCancel = (booking: BookingItem) => {
                                         class="rounded-sm border-slate-300 text-blue-900 focus:ring-blue-900 cursor-pointer h-3.5 w-3.5" />
                                 </th>
                                 <th class="p-4 w-12 font-semibold">No</th>
-                                <th class="p-4 w-32 font-semibold">Aksi</th>
+                                <th class="p-4 w-16 font-semibold">Aksi</th>
                                 <th class="p-4 font-semibold">Acara / Meeting</th>
                                 <th class="p-4 font-semibold">Ruangan</th>
                                 <th class="p-4 font-semibold">Pemohon</th>
@@ -539,7 +649,7 @@ const canShowCancel = (booking: BookingItem) => {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="bookings.data.length === 0">
+                            <tr v-if="bookingsData.data.length === 0">
                                 <td colspan="8" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -549,7 +659,7 @@ const canShowCancel = (booking: BookingItem) => {
                                 </td>
                             </tr>
                             <!-- Data Row -->
-                            <tr v-else v-for="(booking, i) in bookings.data" :key="booking.id"
+                            <tr v-else v-for="(booking, i) in bookingsData.data" :key="booking.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-850/10"
                                 :class="{'bg-blue-50/10 dark:bg-blue-950/5': selectedIds.includes(booking.id)}">
                                 <td class="p-4 text-center">
@@ -559,7 +669,7 @@ const canShowCancel = (booking: BookingItem) => {
                                     <span v-else class="text-slate-300 dark:text-slate-700 font-bold">-</span>
                                 </td>
                                 <td class="p-4 text-xs text-slate-500">
-                                    {{ (bookings.current_page - 1) * bookings.per_page + i + 1 }}
+                                    {{ (bookingsData.current_page - 1) * bookingsData.per_page + i + 1 }}
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-1">

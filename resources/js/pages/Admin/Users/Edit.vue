@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowLeft, Save, KeyRound } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -42,12 +43,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const form = useForm({
+const form = ref({
     name: props.user.name,
     email: props.user.email,
     role: props.user.role,
     organization_id: props.user.organization_id || null,
 });
+
+const errors = ref<Record<string, string>>({});
+const isSubmitting = ref(false);
 
 const orgOptions = computed(() => {
     return props.organizations.map(org => ({
@@ -57,8 +61,43 @@ const orgOptions = computed(() => {
     }));
 });
 
-const submit = () => {
-    form.put(`/admin/users/${props.user.id}`);
+const submit = async () => {
+    isSubmitting.value = true;
+    errors.value = {};
+
+    try {
+        const response = await axios.put(`/api/admin/users/${props.user.id}`, form.value);
+
+        Swal.fire({
+            title: 'Berhasil!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonColor: '#1e3a8a',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        });
+
+        router.visit('/admin/users');
+    } catch (err: any) {
+        if (err.response && err.response.status === 422) {
+            const validationErrors = err.response.data.errors;
+
+            for (const key in validationErrors) {
+                errors.value[key] = validationErrors[key][0];
+            }
+        } else {
+            Swal.fire({
+                title: 'Gagal!',
+                text: err.response?.data?.message || 'Terjadi kesalahan pada server.',
+                icon: 'error',
+                confirmButtonColor: '#1e3a8a',
+                background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+            });
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 
 const handleResetPassword = () => {
@@ -78,7 +117,7 @@ const handleResetPassword = () => {
         inputAttributes: {
             minlength: '8',
             autocapitalize: 'off',
-            autocorrect: 'off'
+            autocorrect: 'off',
         },
         inputValidator: (value) => {
             if (!value) {
@@ -88,24 +127,32 @@ const handleResetPassword = () => {
             if (value.length < 8) {
                 return 'Password minimal 8 karakter!';
             }
-        }
-    }).then((result) => {
+        },
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.patch(`/admin/users/${props.user.id}/reset-password`, {
-                password: result.value
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    Swal.fire({
-                        title: 'Berhasil!',
-                        text: 'Password berhasil direset.',
-                        icon: 'success',
-                        confirmButtonColor: '#1e3a8a',
-                        background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-                        color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-                    });
-                }
-            });
+            try {
+                const response = await axios.patch(`/api/admin/users/${props.user.id}/reset-password`, {
+                    password: result.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat mereset password.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -142,7 +189,7 @@ const handleResetPassword = () => {
                                 <Label for="name">Nama Lengkap</Label>
                                 <Input id="name" v-model="form.name" type="text" required placeholder="Nama Lengkap..."
                                     class="w-full" />
-                                <InputError :message="form.errors.name" />
+                                <InputError :message="errors.name" />
                             </div>
 
                             <!-- Email -->
@@ -150,7 +197,7 @@ const handleResetPassword = () => {
                                 <Label for="email">Alamat Email</Label>
                                 <Input id="email" v-model="form.email" type="email" required placeholder="Email..."
                                     class="w-full" />
-                                <InputError :message="form.errors.email" />
+                                <InputError :message="errors.email" />
                             </div>
 
                             <!-- Role Dropdown -->
@@ -161,7 +208,7 @@ const handleResetPassword = () => {
                                     <option value="user">User</option>
                                     <option value="admin">Administrator</option>
                                 </select>
-                                <InputError :message="form.errors.role" />
+                                <InputError :message="errors.role" />
                             </div>
 
                             <!-- Organization Dropdown -->
@@ -171,7 +218,7 @@ const handleResetPassword = () => {
                                     placeholder="Pilih Divisi..."
                                     searchPlaceholder="Cari divisi berdasarkan nama atau singkatan..."
                                     clearText="Tanpa Divisi" />
-                                <InputError :message="form.errors.organization_id" />
+                                <InputError :message="errors.organization_id" />
                             </div>
                         </div>
 
@@ -199,10 +246,10 @@ const handleResetPassword = () => {
                             <Button as-child variant="ghost" class="cursor-pointer">
                                 <Link href="/admin/users">Batal</Link>
                             </Button>
-                            <Button type="submit" :disabled="form.processing"
+                            <Button type="submit" :disabled="isSubmitting"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs">
                                 <Save class="h-4 w-4" />
-                                <span>{{ form.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
+                                <span>{{ isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
                             </Button>
                         </div>
                     </form>

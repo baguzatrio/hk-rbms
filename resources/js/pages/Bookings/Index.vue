@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     CalendarPlus,
     Calendar,
@@ -52,8 +53,8 @@ interface PaginatedBookings {
     total: number;
 }
 
-defineProps<{
-    bookings: PaginatedBookings;
+const props = defineProps<{
+    bookings?: PaginatedBookings;
 }>();
 
 const page = usePage();
@@ -68,6 +69,44 @@ const breadcrumbs: BreadcrumbItem[] = [
 const isDetailModalOpen = ref(false);
 const isDetailLoading = ref(false);
 const activeBooking = ref<any>(null);
+
+const bookingsData = ref<PaginatedBookings>({
+    data: props.bookings?.data || [],
+    links: props.bookings?.links || [],
+    current_page: props.bookings?.current_page || 1,
+    per_page: props.bookings?.per_page || 10,
+    last_page: props.bookings?.last_page || 1,
+    total: props.bookings?.total || 0,
+});
+
+const isLoading = ref(false);
+
+const fetchBookings = async (pageNumber = 1) => {
+    isLoading.value = true;
+
+    try {
+        const response = await axios.get('/api/bookings', {
+            params: {
+                page: pageNumber,
+            },
+        });
+
+        bookingsData.value = response.data.bookings;
+    } catch (err) {
+        console.error('Error fetching bookings:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageClick = (url: string) => {
+    const urlObj = new URL(url);
+    const pageParam = urlObj.searchParams.get('page');
+
+    if (pageParam) {
+        fetchBookings(parseInt(pageParam));
+    }
+};
 
 // Alert / Flash Messages
 const checkFlashMessages = () => {
@@ -97,7 +136,10 @@ const checkFlashMessages = () => {
     }
 };
 
-onMounted(checkFlashMessages);
+onMounted(() => {
+    fetchBookings(bookingsData.value.current_page);
+    checkFlashMessages();
+});
 watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Pagination label helper
@@ -131,7 +173,7 @@ const translateStatus = (status: string) => {
     switch (status) {
         case 'approved': return 'Disetujui';
         case 'rejected': return 'Ditolak';
-        case 'cancelled': return 'Bibatalkan';
+        case 'cancelled': return 'Dibatalkan';
         default: return 'Pending';
     }
 };
@@ -142,14 +184,14 @@ const formatTime = (timeStr: string) => {
 
 const formatDateDMY = (dateStr: string) => {
     if (!dateStr) {
-return '';
-}
+        return '';
+    }
 
     const parts = dateStr.split('-');
 
     if (parts.length !== 3) {
-return dateStr;
-}
+        return dateStr;
+    }
 
     const [year, month, day] = parts;
 
@@ -163,11 +205,9 @@ const openDetailModal = async (id: number) => {
     activeBooking.value = null;
 
     try {
-        const response = await fetch(`/bookings/${id}`);
+        const response = await axios.get(`/api/bookings/${id}`);
 
-        if (response.ok) {
-            activeBooking.value = await response.json();
-        }
+        activeBooking.value = response.data;
     } catch (err) {
         console.error('Error fetching booking detail:', err);
     } finally {
@@ -193,11 +233,31 @@ const confirmCancel = (booking: BookingItem) => {
         cancelButtonText: 'Kembali',
         background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(`/bookings/${booking.id}`, {
-                preserveScroll: true,
-            });
+            try {
+                const response = await axios.delete(`/api/bookings/${booking.id}`);
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                fetchBookings(bookingsData.value.current_page);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat membatalkan booking.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
         }
     });
 };
@@ -238,16 +298,16 @@ const confirmCancel = (booking: BookingItem) => {
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="bookings.links.length > 0" class="flex items-center gap-1">
-                        <template v-for="(link, k) in bookings.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
+                    <div v-if="bookingsData.links.length > 0" class="flex items-center gap-1">
+                        <template v-for="(link, k) in bookingsData.links" :key="k">
+                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
                                 :class="{
                                     'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
                                     'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
                                 }">
                                 <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
+                            </button>
                             <span v-else v-html="cleanLabel(link.label)"
                                 class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
                         </template>
@@ -260,7 +320,7 @@ const confirmCancel = (booking: BookingItem) => {
                             <tr
                                 class="border-b border-slate-100 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wider">
                                 <th class="p-4 w-12 font-semibold">No</th>
-                                <th class="p-4 w-28 font-semibold">Aksi</th>
+                                <th class="p-4 w-16 font-semibold">Aksi</th>
                                 <th class="p-4 font-semibold">Acara / Meeting</th>
                                 <th class="p-4 font-semibold">Ruang Rapat</th>
                                 <th class="p-4 font-semibold">Tanggal & Waktu</th>
@@ -269,7 +329,7 @@ const confirmCancel = (booking: BookingItem) => {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="bookings.data.length === 0">
+                            <tr v-if="bookingsData.data.length === 0">
                                 <td colspan="6" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -279,10 +339,10 @@ const confirmCancel = (booking: BookingItem) => {
                                 </td>
                             </tr>
                             <!-- Data Row -->
-                            <tr v-else v-for="(booking, i) in bookings.data" :key="booking.id"
+                            <tr v-else v-for="(booking, i) in bookingsData.data" :key="booking.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
                                 <td class="p-4 text-xs text-slate-500">
-                                    {{ (bookings.current_page - 1) * bookings.per_page + i + 1 }}
+                                    {{ (bookingsData.current_page - 1) * bookingsData.per_page + i + 1 }}
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-1">

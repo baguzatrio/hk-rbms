@@ -11,10 +11,10 @@ use Inertia\Response;
 
 class BookingController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request)
     {
-        return Inertia::render('Bookings/Index', [
-            'bookings' => Book::where('requester_id', Auth::id())
+        if ($request->wantsJson()) {
+            $bookings = Book::where('requester_id', Auth::id())
                 ->with('room')
                 ->latest()
                 ->paginate(10)
@@ -28,8 +28,14 @@ class BookingController extends Controller
                     'finish_hour'=> $b->finish_hour,
                     'room'       => ['id' => $b->room->id, 'name' => $b->room->name],
                     'can_cancel' => $b->isPending(),
-                ]),
-        ]);
+                ]);
+
+            return response()->json([
+                'bookings' => $bookings,
+            ]);
+        }
+
+        return Inertia::render('Bookings/Index');
     }
 
     public function create(): Response
@@ -67,17 +73,19 @@ class BookingController extends Controller
         // Cek hari libur (Sabtu & Minggu)
         $startDate = \Carbon\Carbon::parse($validated['start_date']);
         if ($startDate->isWeekend()) {
-            return back()->withErrors([
-                'start_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
-            ])->withInput();
+            return response()->json([
+                'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                'errors' => ['start_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+            ], 422);
         }
 
         if (!empty($validated['end_date'])) {
             $endDate = \Carbon\Carbon::parse($validated['end_date']);
             if ($endDate->isWeekend()) {
-                return back()->withErrors([
-                    'end_date' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).'
-                ])->withInput();
+                return response()->json([
+                    'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                    'errors' => ['end_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+                ], 422);
             }
         }
 
@@ -89,9 +97,10 @@ class BookingController extends Controller
             $validated['start_hour'],
             $validated['finish_hour'],
         )) {
-            return back()->withErrors([
-                'start_date' => 'Ruangan sudah dipesan pada waktu tersebut.'
-            ]);
+            return response()->json([
+                'message' => 'Ruangan sudah dipesan pada waktu tersebut.',
+                'errors' => ['start_date' => ['Ruangan sudah dipesan pada waktu tersebut.']],
+            ], 422);
         }
 
         $book = Book::create([
@@ -101,22 +110,31 @@ class BookingController extends Controller
             'end_date'     => $validated['end_date'] ?? $validated['start_date'],
         ]);
 
-        return redirect()->route('bookings.index')
-            ->with('success', 'Request booking berhasil dikirim. Menunggu persetujuan admin.');
+        return response()->json([
+            'message' => 'Request booking berhasil dikirim. Menunggu persetujuan admin.',
+            'data' => $book,
+        ], 201);
     }
 
     public function destroy(Book $book)
     {
         // User hanya bisa cancel booking miliknya sendiri yang masih pending
         abort_if($book->requester_id !== Auth::id(), 403);
-        abort_if(!$book->isPending(), 422, 'Booking sudah diproses, tidak bisa dibatalkan.');
+        
+        if (!$book->isPending()) {
+            return response()->json([
+                'message' => 'Booking sudah diproses, tidak bisa dibatalkan.',
+            ], 422);
+        }
 
         $book->update([
             'status'       => 'cancelled',
             'cancelled_at' => now(),
         ]);
 
-        return back()->with('success', 'Booking berhasil dibatalkan.');
+        return response()->json([
+            'message' => 'Booking berhasil dibatalkan.',
+        ], 200);
     }
 
     public function show(Book $book)

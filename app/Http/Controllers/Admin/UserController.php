@@ -12,36 +12,40 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
-        $search = $request->input('search');
-        $perPage = $request->input('per_page', 10);
+        if ($request->wantsJson()) {
+            $search = $request->input('search');
+            $perPage = $request->input('per_page', 10);
 
-        if (!in_array($perPage, [10, 20, 30])) {
-            $perPage = 10;
+            if (!in_array($perPage, [10, 20, 30])) {
+                $perPage = 10;
+            }
+
+            $users = User::with('organization')
+                ->when($search, function ($query, $search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhereHas('organization', function ($qOrg) use ($search) {
+                              $qOrg->where('name', 'like', "%{$search}%");
+                          });
+                    });
+                })
+                ->latest()
+                ->paginate($perPage)
+                ->withQueryString();
+
+            return response()->json([
+                'users' => $users,
+                'filters' => [
+                    'search' => $search,
+                    'per_page' => (int) $perPage,
+                ],
+            ]);
         }
 
-        $users = User::with('organization')
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhereHas('organization', function ($qOrg) use ($search) {
-                          $qOrg->where('name', 'like', "%{$search}%");
-                      });
-                });
-            })
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
-
-        return Inertia::render('Admin/Users/Index', [
-            'users' => $users,
-            'filters' => [
-                'search' => $search,
-                'per_page' => (int) $perPage,
-            ],
-        ]);
+        return Inertia::render('Admin/Users/Index');
     }
 
     public function create(): Response
@@ -71,8 +75,10 @@ class UserController extends Controller
 
         $user->syncRoles([$validated['role']]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User berhasil dibuat.');
+        return response()->json([
+            'message' => 'User berhasil dibuat.',
+            'data' => $user,
+        ], 201);
     }
 
     public function edit(User $user): Response
@@ -101,20 +107,25 @@ class UserController extends Controller
 
         $user->syncRoles([$validated['role']]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User berhasil diupdate.');
+        return response()->json([
+            'message' => 'User berhasil diupdate.',
+            'data' => $user,
+        ], 200);
     }
 
     public function destroy(User $user)
     {
         if (auth()->id() === $user->id) {
-            return back()->withErrors(['error' => 'Anda tidak bisa menghapus diri sendiri.']);
+            return response()->json([
+                'message' => 'Anda tidak bisa menghapus diri sendiri.',
+            ], 403);
         }
 
         $user->delete();
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User berhasil dihapus.');
+        return response()->json([
+            'message' => 'User berhasil dihapus.',
+        ], 200);
     }
 
     public function resetPassword(Request $request, User $user)
@@ -127,7 +138,9 @@ class UserController extends Controller
             'password' => Hash::make($request->password)
         ]);
 
-        return back()->with('success', 'Password user berhasil direset.');
+        return response()->json([
+            'message' => 'Password user berhasil direset.',
+        ], 200);
     }
 
     public function bookings(User $user)

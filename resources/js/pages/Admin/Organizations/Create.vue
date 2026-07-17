@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -20,13 +23,51 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const form = useForm({
+const form = ref({
     name: '',
     shortname: '',
 });
 
-const submit = () => {
-    form.post('/admin/organizations');
+const errors = ref<Record<string, string>>({});
+const isSubmitting = ref(false);
+
+const submit = async () => {
+    isSubmitting.value = true;
+    errors.value = {};
+
+    try {
+        const response = await axios.post('/admin/organizations', form.value);
+
+        Swal.fire({
+            title: 'Berhasil!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonColor: '#1e3a8a',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        });
+
+        router.visit('/admin/organizations');
+    } catch (err: any) {
+        if (err.response && err.response.status === 422) {
+            const validationErrors = err.response.data.errors;
+
+            for (const key in validationErrors) {
+                errors.value[key] = validationErrors[key][0];
+            }
+        } else {
+            Swal.fire({
+                title: 'Gagal!',
+                text: err.response?.data?.message || 'Terjadi kesalahan pada server.',
+                icon: 'error',
+                confirmButtonColor: '#1e3a8a',
+                background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+            });
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -63,7 +104,7 @@ const submit = () => {
                             <Label for="name">Nama Divisi</Label>
                             <Input id="name" v-model="form.name" type="text" required
                                 placeholder="Contoh: Teknologi Informasi" class="w-full" />
-                            <InputError :message="form.errors.name" />
+                            <InputError :message="errors.name" />
                         </div>
 
                         <!-- Shortname -->
@@ -71,7 +112,7 @@ const submit = () => {
                             <Label for="shortname">Singkatan Divisi</Label>
                             <Input id="shortname" v-model="form.shortname" type="text" required placeholder="Contoh: TI"
                                 class="w-full" />
-                            <InputError :message="form.errors.shortname" />
+                            <InputError :message="errors.shortname" />
                         </div>
 
                         <!-- Form Actions -->
@@ -85,9 +126,9 @@ const submit = () => {
                             </Button>
                             <Button type="submit"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white cursor-pointer shadow-xs gap-2"
-                                :disabled="form.processing">
+                                :disabled="isSubmitting">
                                 <Save class="h-4 w-4" />
-                                <span>{{ form.processing ? 'Menyimpan...' : 'Simpan Divisi' }}</span>
+                                <span>{{ isSubmitting ? 'Menyimpan...' : 'Simpan Divisi' }}</span>
                             </Button>
                         </div>
                     </form>
