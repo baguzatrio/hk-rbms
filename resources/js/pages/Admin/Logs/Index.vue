@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css';
 import {
     Clock,
     Search,
@@ -10,11 +12,13 @@ import {
     ShieldAlert,
     Monitor
 } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
+
+const isDark = computed(() => document.documentElement.classList.contains('dark'));
 
 interface LogUser {
     id: number;
@@ -57,7 +61,8 @@ const props = defineProps<{
     filters?: {
         start_month?: string;
         end_month?: string;
-        action_filter?: string;
+        modul_filter?: string;
+        status_filter?: string;
         search?: string;
     };
 }>();
@@ -70,8 +75,46 @@ const breadcrumbs: BreadcrumbItem[] = [
 // Filters State
 const startMonth = ref(props.filters?.start_month || '');
 const endMonth = ref(props.filters?.end_month || '');
-const actionFilter = ref(props.filters?.action_filter || 'all');
+const modulFilter = ref(props.filters?.modul_filter || 'all');
+const statusFilter = ref(props.filters?.status_filter || 'all');
 const searchQuery = ref(props.filters?.search || '');
+
+// Helper to convert YYYY-MM string to month picker object { month, year }
+const parseMonthStr = (str: string) => {
+    if (!str) {
+        return null;
+    }
+
+    const parts = str.split('-');
+
+    if (parts.length !== 2) {
+        return null;
+    }
+
+    return {
+        year: parseInt(parts[0]),
+        month: parseInt(parts[1]) - 1, // 0-indexed
+    };
+};
+
+const startMonthObj = ref(parseMonthStr(startMonth.value));
+const endMonthObj = ref(parseMonthStr(endMonth.value));
+
+const handleStartMonth = (val: any) => {
+    if (val && typeof val === 'object' && 'month' in val && 'year' in val) {
+        startMonth.value = `${val.year}-${String(val.month + 1).padStart(2, '0')}`;
+    } else {
+        startMonth.value = '';
+    }
+};
+
+const handleEndMonth = (val: any) => {
+    if (val && typeof val === 'object' && 'month' in val && 'year' in val) {
+        endMonth.value = `${val.year}-${String(val.month + 1).padStart(2, '0')}`;
+    } else {
+        endMonth.value = '';
+    }
+};
 
 let filterTimeout: any;
 
@@ -81,7 +124,8 @@ const applyFilters = () => {
         router.get('/admin/logs', {
             start_month: startMonth.value || undefined,
             end_month: endMonth.value || undefined,
-            action_filter: actionFilter.value !== 'all' ? actionFilter.value : undefined,
+            modul_filter: modulFilter.value !== 'all' ? modulFilter.value : undefined,
+            status_filter: statusFilter.value !== 'all' ? statusFilter.value : undefined,
             search: searchQuery.value || undefined,
         }, {
             preserveState: true,
@@ -90,7 +134,7 @@ const applyFilters = () => {
     }, 150);
 };
 
-watch([startMonth, endMonth, actionFilter, searchQuery], applyFilters);
+watch([startMonth, endMonth, modulFilter, statusFilter, searchQuery], applyFilters);
 
 const cleanLabel = (label: string) => {
     if (label.includes('Previous') || label.includes('Sebelumnya') || label.toLowerCase().includes('prev')) {
@@ -148,6 +192,7 @@ const formatDateTime = (dateTimeStr: string) => {
 const isExportModalOpen = ref(false);
 const exportFilename = ref('');
 
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 const openExportModal = () => {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '_');
@@ -178,8 +223,12 @@ const submitExport = () => {
         queryParams.end_month = endMonth.value;
     }
 
-    if (actionFilter.value && actionFilter.value !== 'all') {
-        queryParams.action_filter = actionFilter.value;
+    if (modulFilter.value && modulFilter.value !== 'all') {
+        queryParams.modul_filter = modulFilter.value;
+    }
+
+    if (statusFilter.value && statusFilter.value !== 'all') {
+        queryParams.status_filter = statusFilter.value;
     }
 
     if (searchQuery.value) {
@@ -365,43 +414,72 @@ const formatFieldLabel = (field: string): string => {
                         sistem.
                     </p>
                 </div>
-                <div>
+                <!-- <div>
                     <Button @click="openExportModal"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-2 font-semibold shadow-sm"
                         size="sm">
                         <FileSpreadsheet class="h-4 w-4" />
                         Ekspor CSV
                     </Button>
-                </div>
+                </div> -->
             </div>
 
             <!-- Filters Section -->
             <div
                 class="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xs">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <!-- Start Month -->
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Bulan Mulai</label>
-                        <input v-model="startMonth" type="month"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer" />
+                        <VueDatePicker
+                            v-model="startMonthObj"
+                            month-picker
+                            auto-apply
+                            format="MM/yyyy"
+                            :dark="isDark"
+                            class="log-datepicker"
+                            placeholder="Pilih Bulan..."
+                            @update:model-value="handleStartMonth"
+                        />
                     </div>
 
                     <!-- End Month -->
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Bulan Selesai</label>
-                        <input v-model="endMonth" type="month"
-                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer" />
+                        <VueDatePicker
+                            v-model="endMonthObj"
+                            month-picker
+                            auto-apply
+                            format="MM/yyyy"
+                            :dark="isDark"
+                            class="log-datepicker"
+                            placeholder="Pilih Bulan..."
+                            @update:model-value="handleEndMonth"
+                        />
                     </div>
 
-                    <!-- Action Selector -->
+                    <!-- Modul Selector -->
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi Aktivitas</label>
-                        <select v-model="actionFilter"
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Modul</label>
+                        <select v-model="modulFilter"
                             class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer">
-                            <option value="all">Semua Aksi</option>
+                            <option value="all">Semua Modul</option>
                             <option v-for="act in actions" :key="act" :value="act">
                                 {{ translateAction(act) }}
                             </option>
+                        </select>
+                    </div>
+
+                    <!-- Status Selector -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Booking</label>
+                        <select v-model="statusFilter"
+                            class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer">
+                            <option value="all">Semua Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="rejected">Ditolak</option>
+                            <option value="cancelled">Dibatalkan</option>
                         </select>
                     </div>
 
@@ -413,7 +491,7 @@ const formatFieldLabel = (field: string): string => {
                                 class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
                                 <Search class="h-3.5 w-3.5" />
                             </span>
-                            <input v-model="searchQuery" type="text" placeholder="Cari pelaku, email, detail..."
+                            <input v-model="searchQuery" type="text" placeholder="Cari pelaku, email..."
                                 class="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600" />
                         </div>
                     </div>
@@ -455,7 +533,7 @@ const formatFieldLabel = (field: string): string => {
                                 <th class="p-4 w-44 font-semibold">Tanggal & Waktu</th>
                                 <th class="p-4 w-52 font-semibold">Pelaku (Pengguna)</th>
                                 <th class="p-4 w-44 font-semibold">Modul</th>
-                                <th class="p-4 w-44 font-semibold">Aksi</th>
+                                <th class="p-4 w-44 font-semibold">Status</th>
                                 <th class="p-4 font-semibold">Detail Perubahan</th>
                                 <th class="p-4 w-32 font-semibold">IP Address</th>
                             </tr>
@@ -586,9 +664,15 @@ const formatFieldLabel = (field: string): string => {
                             </span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-slate-400 font-semibold">Filter Aksi:</span>
+                            <span class="text-slate-400 font-semibold">Filter Modul:</span>
                             <span class="text-slate-700 dark:text-slate-300 font-bold">
-                                {{ actionFilter === 'all' ? 'Semua Aksi' : translateAction(actionFilter) }}
+                                {{ modulFilter === 'all' ? 'Semua Modul' : translateAction(modulFilter) }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400 font-semibold">Status Booking:</span>
+                            <span class="text-slate-700 dark:text-slate-300 font-bold">
+                                {{ statusFilter === 'all' ? 'Semua Status' : statusFilter }}
                             </span>
                         </div>
                         <div

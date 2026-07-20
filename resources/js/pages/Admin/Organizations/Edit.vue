@@ -46,7 +46,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.put(`/admin/organizations/${props.organization.id}`, form.value);
+        const response = await axios.put(`/api/admin/organizations/${props.organization.id}`, form.value);
 
         Swal.fire({
             title: 'Berhasil!',

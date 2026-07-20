@@ -36,7 +36,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.post('/admin/organizations', form.value);
+        const response = await axios.post('/api/admin/organizations', form.value);
 
         Swal.fire({
             title: 'Berhasil!',

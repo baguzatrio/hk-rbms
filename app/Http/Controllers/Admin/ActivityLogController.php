@@ -45,7 +45,7 @@ class ActivityLogController extends Controller
         return Inertia::render('Admin/Logs/Index', [
             'logs'    => $logs,
             'actions' => $actions,
-            'filters' => $request->only(['start_month', 'end_month', 'action_filter', 'search']),
+            'filters' => $request->only(['start_month', 'end_month', 'modul_filter', 'status_filter', 'search']),
         ]);
     }
 
@@ -116,8 +116,16 @@ class ActivityLogController extends Controller
             $query->where('created_at', '<=', $end);
         }
 
-        if ($request->filled('action_filter') && $request->action_filter !== 'all') {
-            $query->where('log_name', $request->action_filter);
+        if ($request->filled('modul_filter') && $request->modul_filter !== 'all') {
+            $query->where('log_name', $request->modul_filter);
+        }
+
+        if ($request->filled('status_filter') && $request->status_filter !== 'all') {
+            $query->where(function ($q) use ($request) {
+                $status = $request->status_filter;
+                $q->where('properties->attributes->status', $status)
+                  ->orWhere('properties->old->status', $status);
+            });
         }
 
         if ($request->filled('search')) {

@@ -88,6 +88,9 @@ const isDetailModalOpen = ref(false);
 const isDetailLoading = ref(false);
 const activeBooking = ref<any>(null);
 
+// Tab state: 'approval' for pending, 'all' for all booking statuses
+const activeTab = ref<'approval' | 'all'>('approval');
+
 // Filters
 const statusFilter = ref(props.filters?.status || '');
 const roomFilter = ref(props.filters?.room_id || '');
@@ -142,11 +145,13 @@ const fetchBookings = async (pageNumber = 1) => {
     isLoading.value = true;
     selectedIds.value = [];
 
+    const statusVal = activeTab.value === 'approval' ? 'pending' : statusFilter.value;
+
     try {
         const response = await axios.get('/api/admin/bookings', {
             params: {
                 page: pageNumber,
-                status: statusFilter.value || undefined,
+                status: statusVal || undefined,
                 room_id: roomFilter.value || undefined,
                 search: searchQuery.value || undefined,
             },
@@ -179,6 +184,16 @@ const applyFilters = () => {
 };
 
 watch([statusFilter, roomFilter, searchQuery], applyFilters);
+
+watch(activeTab, () => {
+    selectedIds.value = [];
+
+    if (activeTab.value === 'approval') {
+        statusFilter.value = '';
+    }
+
+    fetchBookings(1);
+});
 
 // Alert / Flash Messages
 const checkFlashMessages = () => {
@@ -516,9 +531,17 @@ const canShowCancel = (booking: BookingItem) => {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
-        const bookingDate = booking.end_date || booking.start_date;
+        
+        const bookingDateStr = booking.end_date || booking.start_date;
+        const bookingDate = new Date(bookingDateStr);
+        bookingDate.setDate(bookingDate.getDate() + 1);
+        
+        const limitYear = bookingDate.getFullYear();
+        const limitMonth = String(bookingDate.getMonth() + 1).padStart(2, '0');
+        const limitDay = String(bookingDate.getDate()).padStart(2, '0');
+        const limitDateStr = `${limitYear}-${limitMonth}-${limitDay}`;
 
-        return bookingDate >= todayStr;
+        return todayStr <= limitDateStr;
     }
 
     return false;
@@ -532,10 +555,23 @@ const canShowCancel = (booking: BookingItem) => {
         <div class="space-y-6 p-6">
             <!-- Header Section -->
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+                <div class="flex flex-col md:flex-row md:items-center gap-4">
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                         Manajemen Booking Ruangan
                     </h1>
+                    <!-- Tab Toggle Switch (Approval vs All Bookings) -->
+                    <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
+                        <Button type="button" variant="ghost" size="sm" class="h-8 gap-1.5 px-3 text-xs cursor-pointer"
+                            :class="activeTab === 'approval' ? 'bg-white dark:bg-slate-900 shadow-xs text-blue-900 dark:text-blue-400 font-semibold' : 'text-slate-600 dark:text-slate-400'"
+                            @click="activeTab = 'approval'">
+                            Persetujuan (Approval)
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" class="h-8 gap-1.5 px-3 text-xs cursor-pointer"
+                            :class="activeTab === 'all' ? 'bg-white dark:bg-slate-900 shadow-xs text-blue-900 dark:text-blue-400 font-semibold' : 'text-slate-600 dark:text-slate-400'"
+                            @click="activeTab = 'all'">
+                            Semua Booking
+                        </Button>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <Button as-child
@@ -549,7 +585,7 @@ const canShowCancel = (booking: BookingItem) => {
             </div>
 
             <!-- Bulk Actions Banner (Floating or Dinamic) -->
-            <div v-if="selectedIds.length > 0"
+            <div v-if="activeTab === 'approval' && selectedIds.length > 0"
                 class="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-between shadow-xs animate-in slide-in-from-top-2">
                 <span class="text-xs font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-2">
                     <span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
@@ -577,7 +613,7 @@ const canShowCancel = (booking: BookingItem) => {
                     class="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div class="flex flex-wrap items-center gap-3">
                         <!-- Status Filter -->
-                        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <div v-if="activeTab === 'all'" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                             <span>Status:</span>
                             <select v-model="statusFilter"
                                 class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors cursor-pointer">
@@ -634,7 +670,7 @@ const canShowCancel = (booking: BookingItem) => {
                         <thead>
                             <tr
                                 class="border-b border-slate-100 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wider">
-                                <th class="p-4 w-10 text-center">
+                                <th v-if="activeTab === 'approval'" class="p-4 w-10 text-center">
                                     <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll"
                                         class="rounded-sm border-slate-300 text-blue-900 focus:ring-blue-900 cursor-pointer h-3.5 w-3.5" />
                                 </th>
@@ -650,7 +686,7 @@ const canShowCancel = (booking: BookingItem) => {
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
                             <tr v-if="bookingsData.data.length === 0">
-                                <td colspan="8" class="p-8 text-center text-slate-500 dark:text-slate-400">
+                                <td :colspan="activeTab === 'approval' ? 8 : 7" class="p-8 text-center text-slate-500 dark:text-slate-400">
                                     <div class="py-12 text-center">
                                         <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
                                         <p class="text-sm text-slate-700 dark:text-slate-300">Tidak ada booking ditemukan</p>
@@ -662,7 +698,7 @@ const canShowCancel = (booking: BookingItem) => {
                             <tr v-else v-for="(booking, i) in bookingsData.data" :key="booking.id"
                                 class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-850/10"
                                 :class="{'bg-blue-50/10 dark:bg-blue-950/5': selectedIds.includes(booking.id)}">
-                                <td class="p-4 text-center">
+                                <td v-if="activeTab === 'approval'" class="p-4 text-center">
                                     <input v-if="booking.status === 'pending'" type="checkbox"
                                         :checked="selectedIds.includes(booking.id)" @change="toggleSelect(booking.id)"
                                         class="rounded-sm border-slate-300 text-blue-900 focus:ring-blue-900 cursor-pointer h-3.5 w-3.5" />

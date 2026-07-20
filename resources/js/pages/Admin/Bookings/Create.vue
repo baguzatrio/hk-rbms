@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css';
 import axios from 'axios';
 import { ArrowLeft, CalendarPlus, Loader2 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -12,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
+
+const isDark = computed(() => document.documentElement.classList.contains('dark'));
 
 interface Room {
     id: number;
@@ -61,7 +65,7 @@ const getInitialDate = () => {
     return getLocalDateString(date);
 };
 
-const todayStr = getLocalDateString();
+
 
 const roomOptions = computed(() => {
     return props.rooms.map(room => ({
@@ -222,31 +226,68 @@ const submit = async () => {
                             <!-- Tanggal Mulai -->
                             <div class="grid gap-2">
                                 <Label for="start_date">Tanggal Rapat <span class="text-red-500">*</span></Label>
-                                <Input id="start_date" v-model="form.start_date" type="date" :min="todayStr"
-                                    class="w-full" />
+                                <VueDatePicker
+                                    v-model="form.start_date"
+                                    model-type="yyyy-MM-dd"
+                                    format="dd/MM/yyyy"
+                                    :enable-time-picker="false"
+                                    :time-config="{ enableTimePicker: false }"
+                                    auto-apply
+                                    :min-date="new Date()"
+                                    :dark="isDark"
+                                    class="w-full"
+                                    placeholder="Pilih Tanggal Rapat..."
+                                />
                                 <InputError :message="errors.start_date" />
                             </div>
 
                             <!-- Tanggal Selesai (Opsional) -->
                             <div class="grid gap-2">
                                 <Label for="end_date">Tanggal Selesai (Opsional)</Label>
-                                <Input id="end_date" v-model="form.end_date" type="date"
-                                    :min="form.start_date || todayStr" :placeholder="form.start_date" class="w-full" />
+                                <VueDatePicker
+                                    v-model="form.end_date"
+                                    model-type="yyyy-MM-dd"
+                                    format="dd/MM/yyyy"
+                                    :enable-time-picker="false"
+                                    :time-config="{ enableTimePicker: false }"
+                                    auto-apply
+                                    :min-date="form.start_date ? new Date(form.start_date) : new Date()"
+                                    :dark="isDark"
+                                    class="w-full"
+                                    placeholder="Pilih Tanggal Selesai..."
+                                />
                                 <InputError :message="errors.end_date" />
                             </div>
 
                             <!-- Jam Mulai -->
                             <div class="grid gap-2">
                                 <Label for="start_hour">Jam Mulai <span class="text-red-500">*</span></Label>
-                                <Input id="start_hour" v-model="form.start_hour" type="time" class="w-full" />
+                                <VueDatePicker
+                                    v-model="form.start_hour"
+                                    time-picker
+                                    model-type="HH:mm"
+                                    format="HH:mm"
+                                    auto-apply
+                                    :dark="isDark"
+                                    class="w-full"
+                                    placeholder="Pilih Jam Mulai..."
+                                />
                                 <InputError :message="errors.start_hour" />
                             </div>
 
                             <!-- Jam Selesai -->
                             <div class="grid gap-2">
                                 <Label for="finish_hour">Jam Selesai <span class="text-red-500">*</span></Label>
-                                <Input id="finish_hour" v-model="form.finish_hour" type="time"
-                                    class="w-full" />
+                                <VueDatePicker
+                                    v-model="form.finish_hour"
+                                    time-picker
+                                    model-type="HH:mm"
+                                    format="HH:mm"
+                                    auto-apply
+                                    :dark="isDark"
+                                    class="w-full"
+                                    placeholder="Pilih Jam Selesai..."
+                                />
                                 <InputError :message="errors.finish_hour" />
                             </div>
 

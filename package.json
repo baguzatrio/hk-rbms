@@ -35,6 +35,7 @@
     },
     "dependencies": {
         "@inertiajs/vue3": "^2.3.7",
+        "@vuepic/vue-datepicker": "^14.0.0",
         "@vueuse/core": "^12.8.2",
         "axios": "^1.18.1",
         "class-variance-authority": "^0.7.1",

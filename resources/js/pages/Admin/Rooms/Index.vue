@@ -6,7 +6,15 @@ import {
     Building2,
     Edit2,
     Trash2,
-    Search
+    Search,
+    Eye,
+    Loader2,
+    Calendar,
+    Clock,
+    Check,
+    X as CloseIcon,
+    User,
+    Building
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { ref, onMounted, watch } from 'vue';
@@ -205,6 +213,163 @@ const cleanLabel = (label: string) => {
 
     return label;
 };
+
+// Modal State & Functions
+const isDetailModalOpen = ref(false);
+const activeRoom = ref<Room | null>(null);
+const pendingBookings = ref<any[]>([]);
+const isBookingsLoading = ref(false);
+
+const fetchPendingBookings = async (roomId: number) => {
+    isBookingsLoading.value = true;
+
+    try {
+        const response = await axios.get('/api/admin/bookings', {
+            params: {
+                room_id: roomId,
+                status: 'pending',
+                per_page: 50
+            }
+        });
+        pendingBookings.value = response.data.bookings.data;
+    } catch (err) {
+        console.error('Error fetching pending bookings:', err);
+    } finally {
+        isBookingsLoading.value = false;
+    }
+};
+
+const openDetailModal = async (room: Room) => {
+    activeRoom.value = room;
+    isDetailModalOpen.value = true;
+    await fetchPendingBookings(room.id);
+};
+
+const closeDetailModal = () => {
+    isDetailModalOpen.value = false;
+    activeRoom.value = null;
+    pendingBookings.value = [];
+};
+
+const handleRoomApprove = (booking: any) => {
+    Swal.fire({
+        title: 'Setujui Booking?',
+        text: `Apakah Anda yakin ingin menyetujui booking "${booking.title}"?`,
+        icon: 'question',
+        input: 'text',
+        inputPlaceholder: 'Tambahkan catatan persetujuan (opsional)...',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Setujui!',
+        cancelButtonText: 'Kembali',
+        background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+        color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+    }).then(async (result) => {
+        if (result.isConfirmed && activeRoom.value) {
+            try {
+                const response = await axios.post(`/api/admin/bookings/${booking.id}/approve`, {
+                    remarks: result.value || undefined,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                await fetchPendingBookings(activeRoom.value.id);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat menyetujui booking.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
+        }
+    });
+};
+
+const handleRoomReject = (booking: any) => {
+    Swal.fire({
+        title: 'Tolak Booking?',
+        text: `Berikan alasan penolakan untuk booking "${booking.title}":`,
+        icon: 'warning',
+        input: 'textarea',
+        inputPlaceholder: 'Alasan penolakan (wajib diisi)...',
+        inputAttributes: {
+            required: 'true',
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Tolak!',
+        cancelButtonText: 'Kembali',
+        background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+        color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        preConfirm: (value) => {
+            if (!value) {
+                Swal.showValidationMessage('Alasan penolakan wajib diisi!');
+            }
+
+            return value;
+        },
+    }).then(async (result) => {
+        if (result.isConfirmed && activeRoom.value) {
+            try {
+                const response = await axios.post(`/api/admin/bookings/${booking.id}/reject`, {
+                    remarks: result.value,
+                });
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+
+                await fetchPendingBookings(activeRoom.value.id);
+            } catch (err: any) {
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat memproses booking.',
+                    icon: 'error',
+                    confirmButtonColor: '#1e3a8a',
+                    background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+                });
+            }
+        }
+    });
+};
+
+const formatTime = (timeStr: string) => {
+    return timeStr.substring(0, 5);
+};
+
+const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) {
+        return '';
+    }
+
+    const parts = dateStr.split('-');
+
+    if (parts.length !== 3) {
+        return dateStr;
+    }
+
+    const [year, month, day] = parts;
+
+    return `${day}-${month}-${year}`;
+};
 </script>
 
 <template>
@@ -321,6 +486,11 @@ const cleanLabel = (label: string) => {
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-1">
+                                        <Button variant="ghost" size="icon"
+                                            class="h-8 w-8 cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                                            title="Detail Ruangan" @click="openDetailModal(room)">
+                                            <Eye class="h-4 w-4" />
+                                        </Button>
                                         <Button as-child variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200"
                                             title="Edit Ruangan">
@@ -336,7 +506,10 @@ const cleanLabel = (label: string) => {
                                     </div>
                                 </td>
                                 <td class="p-4 font-medium text-slate-900 dark:text-white">
-                                    {{ room.name }}
+                                    <button type="button" @click="openDetailModal(room)"
+                                        class="hover:underline text-blue-900 dark:text-blue-400 font-semibold text-left cursor-pointer">
+                                        {{ room.name }}
+                                    </button>
                                 </td>
                                 <td class="p-4 text-slate-700 dark:text-slate-300">
                                     Lantai {{ room.floor }}
@@ -360,5 +533,142 @@ const cleanLabel = (label: string) => {
             </div>
         </div>
 
+        <!-- Room Detail & Booking Approval Modal -->
+        <div v-if="isDetailModalOpen && activeRoom"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in-0">
+            <div
+                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-4xl rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+                <!-- Modal Header -->
+                <div
+                    class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
+                    <div class="flex items-center gap-2">
+                        <Building2 class="h-5 w-5 text-blue-900 dark:text-blue-400" />
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Detail & Persetujuan Ruangan</h2>
+                    </div>
+                    <Button variant="ghost" size="icon"
+                        class="h-8 w-8 rounded-full cursor-pointer text-slate-400 hover:text-slate-950 dark:hover:text-white"
+                        @click="closeDetailModal">
+                        <CloseIcon class="h-4 w-4" />
+                    </Button>
+                </div>
+
+                <!-- Modal Body (Scrollable) -->
+                <div class="p-6 overflow-y-auto space-y-6 text-sm flex-1">
+                    <!-- Room Info Card -->
+                    <div class="grid gap-4 md:grid-cols-3 p-4 bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800/80 rounded-xl">
+                        <div class="space-y-1">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nama Ruangan</span>
+                            <p class="font-bold text-slate-900 dark:text-white text-base">{{ activeRoom.name }}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lantai & Kapasitas</span>
+                            <p class="font-semibold text-slate-800 dark:text-slate-200">
+                                Lantai {{ activeRoom.floor }} &bull; {{ activeRoom.capacity }} Orang
+                            </p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Ruangan</span>
+                            <div class="pt-0.5">
+                                <Badge :variant="activeRoom.is_active ? 'default' : 'secondary'"
+                                    :class="activeRoom.is_active
+                                        ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800/50'
+                                        : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'"
+                                    class="text-[10px] px-2 py-0 border font-semibold">
+                                    {{ activeRoom.is_active ? 'Aktif' : 'Nonaktif' }}
+                                </Badge>
+                            </div>
+                        </div>
+                        <div class="space-y-1 md:col-span-3" v-if="activeRoom.description">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Deskripsi</span>
+                            <p class="text-slate-700 dark:text-slate-300">{{ activeRoom.description }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Pending Bookings Approval Section -->
+                    <div class="space-y-3">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                            <Calendar class="h-4 w-4 text-amber-500" />
+                            Daftar Persetujuan Rapat Pending
+                        </h3>
+
+                        <!-- Loading Indicator -->
+                        <div v-if="isBookingsLoading" class="py-12 flex flex-col justify-center items-center text-slate-500 dark:text-slate-400">
+                            <Loader2 class="h-8 w-8 animate-spin text-blue-900 dark:text-blue-400 mb-2" />
+                            <span class="text-xs">Memuat data persetujuan...</span>
+                        </div>
+
+                        <!-- Empty Pending Bookings -->
+                        <div v-else-if="pendingBookings.length === 0" class="py-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                            <Calendar class="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                            <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Tidak ada booking pending untuk ruangan ini</p>
+                            <p class="text-[11px] text-muted-foreground mt-0.5">Semua pemesanan ruangan ini telah diproses.</p>
+                        </div>
+
+                        <!-- Bookings Approval Table -->
+                        <div v-else class="border border-slate-100 dark:border-slate-800/80 rounded-xl overflow-hidden">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-100 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-900/40 font-semibold uppercase tracking-wider">
+                                        <th class="p-3">Aksi</th>
+                                        <th class="p-3">Agenda Rapat</th>
+                                        <th class="p-3">Pemohon & Divisi</th>
+                                        <th class="p-3">Tanggal & Waktu</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                    <tr v-for="booking in pendingBookings" :key="booking.id" class="align-middle hover:bg-slate-50/30 dark:hover:bg-slate-850/10">
+                                        <td class="p-3">
+                                            <div class="flex items-center gap-1.5">
+                                                <Button size="sm" class="bg-green-600 hover:bg-green-750 text-white text-[11px] py-1 h-7 gap-1 cursor-pointer font-semibold"
+                                                    @click="handleRoomApprove(booking)">
+                                                    <Check class="h-3 w-3" />
+                                                    Setujui
+                                                </Button>
+                                                <Button size="sm" class="bg-red-600 hover:bg-red-750 text-white text-[11px] py-1 h-7 gap-1 cursor-pointer font-semibold"
+                                                    @click="handleRoomReject(booking)">
+                                                    <CloseIcon class="h-3 w-3" />
+                                                    Tolak
+                                                </Button>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 font-semibold text-slate-900 dark:text-white">
+                                            {{ booking.title }}
+                                        </td>
+                                        <td class="p-3 text-slate-700 dark:text-slate-300">
+                                            <div class="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                                <User class="h-3 w-3 text-slate-400" />
+                                                {{ booking.requester.name }}
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                                                <Building class="h-3 w-3 text-slate-400" />
+                                                <span>Divisi: {{ booking.requester.org || '-' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 text-slate-700 dark:text-slate-300">
+                                            <div class="flex items-center gap-1 text-[11px]">
+                                                <Calendar class="h-3.5 w-3.5 text-slate-400" />
+                                                <span>{{ formatDateDMY(booking.start_date) }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 text-[10px] mt-0.5 font-semibold text-slate-500">
+                                                <Clock class="h-3.5 w-3.5 text-slate-400" />
+                                                <span>{{ formatTime(booking.start_hour) }} - {{ formatTime(booking.finish_hour) }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end bg-slate-50/50 dark:bg-slate-950/40">
+                    <Button type="button" class="bg-blue-900 hover:bg-blue-800 text-white text-xs cursor-pointer"
+                        @click="closeDetailModal">
+                        Tutup
+                    </Button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>

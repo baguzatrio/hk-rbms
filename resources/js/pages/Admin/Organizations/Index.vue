@@ -161,7 +161,7 @@ const confirmDelete = (org: OrganizationItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.delete(`/admin/organizations/${org.id}`);
+                const response = await axios.delete(`/api/admin/organizations/${org.id}`);
 
                 Swal.fire({
                     title: 'Berhasil!',

@@ -170,3 +170,100 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Vue Datepicker custom theme variables & styles */
+.dp__main {
+    font-family: inherit;
+    width: 100%;
+}
+.dp__input {
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: calc(var(--radius) - 2px) !important; /* rounded-md */
+    height: 36px !important; /* h-9 */
+    font-size: 0.875rem !important; /* text-sm / md:text-sm */
+    font-weight: 500 !important;
+    padding-left: 36px !important; /* spacing for icon */
+    padding-right: 32px !important; /* spacing for clear button */
+    box-shadow: var(--shadow-xs, 0 1px 2px 0 rgba(0, 0, 0, 0.05)) !important;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+}
+
+.dp__input::placeholder {
+    color: var(--muted-foreground) !important;
+    opacity: 0.7 !important;
+}
+
+.dark .dp__input {
+    background-color: rgba(25, 25, 25, 0.3) !important; /* matching dark:bg-input/30 */
+    border-color: var(--input) !important;
+}
+
+/* Match focus rings: focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] */
+.dp__input:focus,
+.dp__input_focus {
+    border-color: var(--ring) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(163, 163, 163, 0.3) !important; /* ring-ring/50 */
+}
+
+.dark .dp__input:focus,
+.dark .dp__input_focus {
+    box-shadow: 0 0 0 3px rgba(212, 212, 212, 0.2) !important;
+}
+
+/* Icon style overrides */
+.dp__input_icon {
+    left: 12px !important;
+    color: hsl(0 0% 45.1%) !important; /* muted-foreground */
+}
+.dark .dp__input_icon {
+    color: hsl(0 0% 63.9%) !important;
+}
+
+/* Log Month Picker Specific Sizing Overrides */
+.log-datepicker .dp__input {
+    height: 30px !important; /* matches h-8 / py-1.5 size of sibling selectors */
+    font-size: 0.75rem !important; /* text-xs */
+    padding-left: 30px !important;
+}
+.log-datepicker .dp__input_icon {
+    left: 8px !important;
+}
+.log-datepicker .dp__input_clear {
+    right: 8px !important;
+}
+
+/* Menu popup style overrides */
+.dp__menu {
+    border-radius: calc(var(--radius) - 2px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid var(--border) !important;
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+    font-size: 0.875rem !important;
+}
+
+.dp__theme_light {
+    --dp-background-color: hsl(0 0% 100%) !important;
+    --dp-text-color: hsl(0 0% 3.9%) !important;
+    --dp-hover-color: hsl(0 0% 96.1%) !important;
+    --dp-hover-text-color: hsl(0 0% 3.9%) !important;
+    --dp-hover-icon-color: hsl(0 0% 3.9%) !important;
+    --dp-primary-color: hsl(220 47% 22.5%) !important;
+    --dp-primary-text-color: hsl(0 0% 98%) !important;
+    --dp-border-color: hsl(0 0% 92.8%) !important;
+    --dp-menu-border-color: hsl(0 0% 92.8%) !important;
+}
+.dp__theme_dark {
+    --dp-background-color: hsl(0 0% 3.9%) !important;
+    --dp-text-color: hsl(0 0% 98%) !important;
+    --dp-hover-color: hsl(0 0% 16.08%) !important;
+    --dp-hover-text-color: hsl(0 0% 98%) !important;
+    --dp-hover-icon-color: hsl(0 0% 98%) !important;
+    --dp-primary-color: hsl(220 47% 22.5%) !important;
+    --dp-primary-text-color: hsl(0 0% 98%) !important;
+    --dp-border-color: hsl(0 0% 14.9%) !important;
+    --dp-menu-border-color: hsl(0 0% 14.9%) !important;
+}

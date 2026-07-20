@@ -102,6 +102,17 @@ class BookingController extends Controller
         $request->validate(['remarks' => 'required|string|max:500']);
         $originalStatus = $book->status;
 
+        if ($originalStatus === 'approved') {
+            $endDate = \Carbon\Carbon::parse($book->end_date ?? $book->start_date)->startOfDay();
+            $limitDate = $endDate->copy()->addDay()->endOfDay(); // Maksimal 1 hari setelah agenda rapat
+            
+            if (now()->gt($limitDate)) {
+                return response()->json([
+                    'message' => 'Pemesanan yang sudah disetujui hanya dapat dibatalkan maksimal 1 hari setelah tanggal rapat.',
+                ], 422);
+            }
+        }
+
         $book->update([
             'status'       => $originalStatus === 'approved' ? 'cancelled' : 'rejected',
             'approved_by'  => Auth::id(),
