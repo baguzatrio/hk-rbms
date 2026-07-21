@@ -22,9 +22,10 @@ class RoomController extends Controller
 
             $rooms = Room::latest()
                 ->when($search, function ($query, $search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('floor', 'like', "%{$search}%");
+                    $searchLower = strtolower($search);
+                    $query->where(function ($q) use ($searchLower) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                          ->orWhereRaw('LOWER(floor) LIKE ?', ["%{$searchLower}%"]);
                     });
                 })
                 ->paginate($perPage)

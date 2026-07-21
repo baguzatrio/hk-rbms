@@ -14,12 +14,19 @@ class ScheduleController extends Controller
     public function index(Request $request): Response
     {
         $roomId = $request->query('room_id');
+        $orgId = $request->query('organization_id');
         
         $query = Book::approved()
             ->with(['room', 'requester.organization']);
 
         if ($roomId) {
             $query->where('room_id', $roomId);
+        }
+
+        if ($orgId) {
+            $query->whereHas('requester', function ($q) use ($orgId) {
+                $q->where('organization_id', $orgId);
+            });
         }
 
         $bookings = $query->get()->map(fn($b) => [
@@ -37,9 +44,10 @@ class ScheduleController extends Controller
         ]);
 
         return Inertia::render('JadwalRapat', [
-            'bookings' => $bookings,
-            'rooms'    => Room::active()->select('id', 'name', 'floor')->get(),
-            'filters'  => $request->only(['room_id']),
+            'bookings'      => $bookings,
+            'rooms'         => Room::active()->select('id', 'name', 'floor')->get(),
+            'organizations' => \App\Models\Organization::select('id', 'name', 'shortname')->get(),
+            'filters'       => $request->only(['room_id', 'organization_id']),
         ]);
     }
 

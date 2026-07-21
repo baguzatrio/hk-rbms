@@ -24,11 +24,12 @@ class UserController extends Controller
 
             $users = User::with('organization')
                 ->when($search, function ($query, $search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhereHas('organization', function ($qOrg) use ($search) {
-                              $qOrg->where('name', 'like', "%{$search}%");
+                    $searchLower = strtolower($search);
+                    $query->where(function ($q) use ($searchLower) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                          ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"])
+                          ->orWhereHas('organization', function ($qOrg) use ($searchLower) {
+                              $qOrg->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
                           });
                     });
                 })

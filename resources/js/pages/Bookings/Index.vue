@@ -11,7 +11,8 @@ import {
     Building2,
     Loader2,
     UserCheck,
-    ClipboardList
+    ClipboardList,
+    Edit2
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { ref, watch, onMounted } from 'vue';
@@ -351,10 +352,16 @@ const confirmCancel = (booking: BookingItem) => {
                                             title="Detail Booking" @click="openDetailModal(booking.id)">
                                             <Eye class="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon"
+                                        <Button v-if="booking.status === 'pending'" variant="ghost" size="icon"
+                                            class="h-8 w-8 cursor-pointer text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200"
+                                            title="Edit Booking" as-child>
+                                            <Link :href="`/bookings/${booking.id}/edit`">
+                                                <Edit2 class="h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                        <Button v-if="booking.can_cancel" variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-905 dark:text-red-400 dark:hover:text-red-200"
-                                            title="Batalkan Booking" :disabled="!booking.can_cancel"
-                                            :class="{'opacity-40 cursor-not-allowed': !booking.can_cancel}"
+                                            title="Batalkan Booking"
                                             @click="confirmCancel(booking)">
                                             <Trash2 class="h-4 w-4" />
                                         </Button>

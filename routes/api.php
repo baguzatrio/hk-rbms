@@ -7,16 +7,21 @@ use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\DashboardController;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     // Guest/User REST API Routes
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
+    Route::put('/bookings/{book}', [BookingController::class, 'update']);
     Route::delete('/bookings/{book}', [BookingController::class, 'destroy']);
     Route::get('/bookings/{book}', [BookingController::class, 'show']);
 
     // Admin REST API Routes
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+        // Dashboard Stats
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+
         // Organizations API
         Route::get('/organizations', [OrganizationController::class, 'index']);
         Route::post('/organizations', [OrganizationController::class, 'store']);
@@ -40,6 +45,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Bookings API
         Route::get('/bookings', [AdminBookingController::class, 'index']);
         Route::post('/bookings', [AdminBookingController::class, 'store']);
+        Route::put('/bookings/{book}', [AdminBookingController::class, 'update']);
         Route::post('/bookings/{book}/approve', [AdminBookingController::class, 'approve']);
         Route::post('/bookings/{book}/reject', [AdminBookingController::class, 'reject']);
         Route::post('/bookings/bulk-approve', [AdminBookingController::class, 'bulkApprove']);

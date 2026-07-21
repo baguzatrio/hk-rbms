@@ -25,6 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('bookings')->name('bookings.')->group(function () {
         Route::get('/',              [BookingController::class, 'index'])  ->name('index');
         Route::get('/create',        [BookingController::class, 'create']) ->name('create');
+        Route::get('/{book}/edit',   [BookingController::class, 'edit'])   ->name('edit');
     });
 
     // ── Admin routes ───────────────────────────────────────────
@@ -34,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('bookings')->name('bookings.')->group(function () {
             Route::get('/',                          [Admin\BookingController::class, 'index'])        ->name('index');
             Route::get('/create',                    [Admin\BookingController::class, 'create'])       ->name('create');
+            Route::get('/{book}/edit',               [Admin\BookingController::class, 'edit'])         ->name('edit');
             Route::get('/export',                    [Admin\BookingController::class, 'export'])       ->name('export');
         });
 

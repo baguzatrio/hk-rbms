@@ -42,21 +42,22 @@ class BookingController extends Controller
     {
         return Inertia::render('Bookings/Create', [
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
+            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'room_id'    => 'required|exists:rooms,id',
-            'title'      => 'required|string|max:255',
-            'start_date' => 'required|date|after_or_equal:today',
-            'end_date'   => 'nullable|date|after_or_equal:start_date',
-            'start_hour' => 'required|date_format:H:i',
-            'finish_hour'=> 'required|date_format:H:i|after:start_hour',
-            'notes'      => 'nullable|string|max:1000',
-            'pic_name'   => 'required|string|max:255',
-            'participants'=> 'nullable|string|max:2000',
+            'room_id'      => 'required|exists:rooms,id',
+            'title'        => 'required|string|max:255',
+            'start_date'   => 'required|date|after_or_equal:today',
+            'end_date'     => 'nullable|date|after_or_equal:start_date',
+            'start_hour'   => 'required|date_format:H:i',
+            'finish_hour'  => 'required|date_format:H:i|after:start_hour',
+            'notes'        => 'nullable|string|max:1000',
+            'requester_id' => 'required|exists:users,id',
+            'participants' => 'nullable|string|max:2000',
         ], [
             'room_id.required'         => 'Ruangan rapat wajib dipilih.',
             'room_id.exists'           => 'Ruangan rapat tidak valid.',
@@ -67,7 +68,7 @@ class BookingController extends Controller
             'start_hour.required'      => 'Jam mulai wajib diisi.',
             'finish_hour.required'     => 'Jam selesai wajib diisi.',
             'finish_hour.after'        => 'Jam selesai harus setelah jam mulai.',
-            'pic_name.required'        => 'Nama PIC penanggung jawab wajib diisi.',
+            'requester_id.required'    => 'Pemohon rapat wajib dipilih.',
         ]);
 
         // Cek hari libur (Sabtu & Minggu)
@@ -103,9 +104,12 @@ class BookingController extends Controller
             ], 422);
         }
 
+        $user = \App\Models\User::findOrFail($validated['requester_id']);
+
         $book = Book::create([
             ...$validated,
-            'requester_id' => Auth::id(),
+            'requester_id' => $user->id,
+            'pic_name'     => $user->name,
             'status'       => 'pending',
             'end_date'     => $validated['end_date'] ?? $validated['start_date'],
         ]);
@@ -114,6 +118,106 @@ class BookingController extends Controller
             'message' => 'Request booking berhasil dikirim. Menunggu persetujuan admin.',
             'data' => $book,
         ], 201);
+    }
+
+    public function edit(Book $book): Response
+    {
+        abort_if($book->requester_id !== Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
+        abort_if($book->status !== 'pending', 403, 'Hanya booking dengan status pending yang dapat diubah.');
+
+        return Inertia::render('Bookings/Edit', [
+            'book'  => [
+                'id'           => $book->id,
+                'room_id'      => $book->room_id,
+                'requester_id' => $book->requester_id,
+                'title'        => $book->title,
+                'start_date'   => $book->start_date->format('Y-m-d'),
+                'end_date'     => $book->end_date?->format('Y-m-d'),
+                'start_hour'   => substr($book->start_hour, 0, 5),
+                'finish_hour'  => substr($book->finish_hour, 0, 5),
+                'notes'        => $book->notes,
+                'participants' => $book->participants,
+            ],
+            'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
+            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+        ]);
+    }
+
+    public function update(Request $request, Book $book)
+    {
+        abort_if($book->requester_id !== Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
+        abort_if($book->status !== 'pending', 403, 'Hanya booking dengan status pending yang dapat diubah.');
+
+        $validated = $request->validate([
+            'room_id'      => 'required|exists:rooms,id',
+            'title'        => 'required|string|max:255',
+            'start_date'   => 'required|date|after_or_equal:today',
+            'end_date'     => 'nullable|date|after_or_equal:start_date',
+            'start_hour'   => 'required|date_format:H:i',
+            'finish_hour'  => 'required|date_format:H:i|after:start_hour',
+            'notes'        => 'nullable|string|max:1000',
+            'requester_id' => 'required|exists:users,id',
+            'participants' => 'nullable|string|max:2000',
+        ], [
+            'room_id.required'         => 'Ruangan rapat wajib dipilih.',
+            'room_id.exists'           => 'Ruangan rapat tidak valid.',
+            'title.required'           => 'Agenda rapat wajib diisi.',
+            'start_date.required'      => 'Tanggal rapat wajib diisi.',
+            'start_date.after_or_equal'=> 'Tanggal rapat tidak boleh sebelum hari ini.',
+            'end_date.after_or_equal'  => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'start_hour.required'      => 'Jam mulai wajib diisi.',
+            'finish_hour.required'     => 'Jam selesai wajib diisi.',
+            'finish_hour.after'        => 'Jam selesai harus setelah jam mulai.',
+            'requester_id.required'    => 'Pemohon rapat wajib dipilih.',
+        ]);
+
+        // Cek hari libur (Sabtu & Minggu)
+        $startDate = \Carbon\Carbon::parse($validated['start_date']);
+        if ($startDate->isWeekend()) {
+            return response()->json([
+                'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                'errors' => ['start_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+            ], 422);
+        }
+
+        if (!empty($validated['end_date'])) {
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+            if ($endDate->isWeekend()) {
+                return response()->json([
+                    'message' => 'Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).',
+                    'errors' => ['end_date' => ['Pemesanan hanya dapat dilakukan pada hari kerja (Senin - Jumat).']],
+                ], 422);
+            }
+        }
+
+        // Cek konflik jadwal (kecuali booking ini sendiri)
+        if (Book::hasConflict(
+            $validated['room_id'],
+            $validated['start_date'],
+            $validated['end_date'] ?? $validated['start_date'],
+            $validated['start_hour'],
+            $validated['finish_hour'],
+            $book->id
+        )) {
+            return response()->json([
+                'message' => 'Ruangan sudah dipesan pada waktu tersebut.',
+                'errors' => ['start_date' => ['Ruangan sudah dipesan pada waktu tersebut.']],
+            ], 422);
+        }
+
+        $user = \App\Models\User::findOrFail($validated['requester_id']);
+
+        $book->update([
+            ...$validated,
+            'requester_id' => $user->id,
+            'pic_name'     => $user->name,
+            'end_date'     => $validated['end_date'] ?? $validated['start_date'],
+        ]);
+
+        return response()->json([
+            'message' => 'Booking berhasil diperbarui.',
+            'data'    => $book,
+        ], 200);
     }
 
     public function destroy(Book $book)

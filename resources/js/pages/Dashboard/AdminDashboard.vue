@@ -1,15 +1,36 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ClipboardCheck, CheckCircle2, Building2, Users, Calendar, Clock, MapPin, ArrowRight } from 'lucide-vue-next';
+import axios from 'axios';
+import {
+    ClipboardCheck,
+    CheckCircle2,
+    Building2,
+    Users,
+    Calendar,
+    Clock,
+    MapPin,
+    ArrowRight,
+    Lock,
+    Unlock,
+    X
+} from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+interface DashboardRoom {
+    id: number;
+    name: string;
+    floor: string;
+}
+
 interface Stats {
     pendingCount: number;
     approvedToday: number;
-    totalRooms: number;
+    occupiedRooms: DashboardRoom[];
+    vacantRooms: DashboardRoom[];
     totalUsers: number;
 }
 
@@ -33,7 +54,7 @@ interface PendingBooking {
     };
 }
 
-defineProps<{
+const props = defineProps<{
     stats: Stats;
     recentPending: PendingBooking[];
 }>();
@@ -41,6 +62,53 @@ defineProps<{
 const breadcrumbs = [
     { title: 'Admin Dashboard', href: '/dashboard' }
 ];
+
+// Reactive local copy of stats for polling
+const localStats = ref<Stats>({
+    pendingCount: props.stats.pendingCount,
+    approvedToday: props.stats.approvedToday,
+    occupiedRooms: props.stats.occupiedRooms || [],
+    vacantRooms: props.stats.vacantRooms || [],
+    totalUsers: props.stats.totalUsers,
+});
+
+// Modal state
+const isModalOpen = ref(false);
+const modalTitle = ref('');
+const modalRooms = ref<DashboardRoom[]>([]);
+
+const openRoomsModal = (type: 'occupied' | 'vacant') => {
+    if (type === 'occupied') {
+        modalTitle.value = 'Daftar Ruangan Terpakai Saat Ini';
+        modalRooms.value = localStats.value.occupiedRooms;
+    } else {
+        modalTitle.value = 'Daftar Ruangan Tidak Terpakai Saat Ini';
+        modalRooms.value = localStats.value.vacantRooms;
+    }
+    isModalOpen.value = true;
+};
+
+// Polling setup (every 10 minutes / 600,000 ms)
+let pollingInterval: any = null;
+
+const refreshStats = async () => {
+    try {
+        const response = await axios.get('/api/admin/dashboard/stats');
+        localStats.value = response.data;
+    } catch (error) {
+        console.error('Error refreshing dashboard stats:', error);
+    }
+};
+
+onMounted(() => {
+    pollingInterval = setInterval(refreshStats, 600000);
+});
+
+onUnmounted(() => {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+});
 
 const formatTimeRange = (start: string, finish: string) => {
     return `${start.substring(0, 5)} - ${finish.substring(0, 5)}`;
@@ -80,7 +148,7 @@ const formatDateDMY = (dateStr: string) => {
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <!-- Pending Booking -->
                 <Card class="border-slate-100 dark:border-slate-800">
                     <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -91,7 +159,7 @@ const formatDateDMY = (dateStr: string) => {
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold text-slate-900 dark:text-white">
-                            {{ stats.pendingCount }}
+                            {{ localStats.pendingCount }}
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
                             Booking menunggu diproses
@@ -109,7 +177,7 @@ const formatDateDMY = (dateStr: string) => {
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold text-slate-900 dark:text-white">
-                            {{ stats.approvedToday }}
+                            {{ localStats.approvedToday }}
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
                             Ruangan yang aktif disewa
@@ -117,20 +185,38 @@ const formatDateDMY = (dateStr: string) => {
                     </CardContent>
                 </Card>
 
-                <!-- Total Rooms -->
-                <Card class="border-slate-100 dark:border-slate-800">
+                <!-- Ruangan Terpakai Saat Ini -->
+                <Card class="border-slate-100 dark:border-slate-800 cursor-pointer hover:shadow-md transition-all group duration-200" @click="openRoomsModal('occupied')">
                     <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase">
-                            Total Ruangan
+                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase group-hover:text-rose-600 dark:group-hover:text-rose-450 transition-colors">
+                            Ruangan Terpakai
                         </CardTitle>
-                        <Building2 class="h-5 w-5 text-blue-500" />
+                        <Lock class="h-5 w-5 text-rose-500 group-hover:scale-110 transition-transform" />
                     </CardHeader>
                     <CardContent>
-                        <div class="text-2xl font-bold text-slate-900 dark:text-white">
-                            {{ stats.totalRooms }}
+                        <div class="text-2xl font-bold text-rose-600 dark:text-rose-450">
+                            {{ localStats.occupiedRooms.length }}
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
-                            Ruang rapat aktif
+                            Klik untuk lihat detail
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <!-- Ruangan Tidak Terpakai Saat Ini -->
+                <Card class="border-slate-100 dark:border-slate-800 cursor-pointer hover:shadow-md transition-all group duration-200" @click="openRoomsModal('vacant')">
+                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase group-hover:text-emerald-600 dark:group-hover:text-emerald-450 transition-colors">
+                            Ruangan Kosong
+                        </CardTitle>
+                        <Unlock class="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-450">
+                            {{ localStats.vacantRooms.length }}
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            Klik untuk lihat detail
                         </p>
                     </CardContent>
                 </Card>
@@ -145,7 +231,7 @@ const formatDateDMY = (dateStr: string) => {
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold text-slate-900 dark:text-white">
-                            {{ stats.totalUsers }}
+                            {{ localStats.totalUsers }}
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
                             Karyawan pemegang akun
@@ -232,6 +318,45 @@ const formatDateDMY = (dateStr: string) => {
                     </div>
                 </CardContent>
             </Card>
+
+            <!-- Modal Detail Ruangan (Terpakai / Kosong) -->
+            <div v-if="isModalOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200"
+                @click="isModalOpen = false">
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]"
+                    @click.stop>
+                    <!-- Modal Header -->
+                    <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Building2 class="h-4.5 w-4.5 text-blue-900 dark:text-blue-400" />
+                            {{ modalTitle }}
+                        </h3>
+                        <Button variant="ghost" size="icon" class="h-7 w-7 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" @click="isModalOpen = false">
+                            <X class="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="p-5 overflow-y-auto flex-1 space-y-2">
+                        <div v-if="modalRooms.length === 0" class="text-center py-6 text-sm text-muted-foreground">
+                            Tidak ada ruangan dalam kategori ini.
+                        </div>
+                        <div v-else class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                            <div v-for="room in modalRooms" :key="room.id" class="py-2.5 flex items-center justify-between first:pt-0 last:pb-0">
+                                <span class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ room.name }}</span>
+                                <span class="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-sm">Lantai {{ room.floor }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex justify-end">
+                        <Button size="sm" class="bg-blue-900 hover:bg-blue-800 text-white cursor-pointer" @click="isModalOpen = false">
+                            Tutup
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>

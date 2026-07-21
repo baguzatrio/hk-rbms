@@ -129,15 +129,13 @@ class ActivityLogController extends Controller
         }
 
         if ($request->filled('search')) {
-            $driver = \DB::connection()->getDriverName();
-            $like = $driver === 'pgsql' ? 'ilike' : 'like';
-            $search = $request->search;
-            $query->where(function($q) use ($search, $like) {
-                $q->where('description', $like, "%{$search}%")
-                  ->orWhere('log_name', $like, "%{$search}%")
-                  ->orWhereHasMorph('causer', [\App\Models\User::class], function($q2) use ($search, $like) {
-                      $q2->where('name', $like, "%{$search}%")
-                        ->orWhere('email', $like, "%{$search}%");
+            $searchLower = strtolower($request->search);
+            $query->where(function($q) use ($searchLower) {
+                $q->whereRaw('LOWER(description) LIKE ?', ["%{$searchLower}%"])
+                  ->orWhereRaw('LOWER(log_name) LIKE ?', ["%{$searchLower}%"])
+                  ->orWhereHasMorph('causer', [\App\Models\User::class], function($q2) use ($searchLower) {
+                      $q2->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                        ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
                   });
             });
         }

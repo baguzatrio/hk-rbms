@@ -48,11 +48,19 @@ interface Booking {
 
 interface Filters {
     room_id?: string;
+    organization_id?: string;
+}
+
+interface Organization {
+    id: number;
+    name: string;
+    shortname: string;
 }
 
 const props = defineProps<{
     bookings: Booking[];
     rooms: Room[];
+    organizations: Organization[];
     filters: Filters;
 }>();
 
@@ -69,6 +77,10 @@ const viewMode = ref<'calendar' | 'agenda'>('calendar');
 const isRoomDropdownOpen = ref(false);
 const searchQuery = ref('');
 const roomDropdownRef = ref<HTMLElement | null>(null);
+
+const isOrgDropdownOpen = ref(false);
+const orgSearchQuery = ref('');
+const orgDropdownRef = ref<HTMLElement | null>(null);
 
 const selectedCalendarDate = ref<Date | null>(null);
 const isDateModalOpen = ref(false);
@@ -105,6 +117,10 @@ onClickOutside(roomDropdownRef, () => {
     isRoomDropdownOpen.value = false;
 });
 
+onClickOutside(orgDropdownRef, () => {
+    isOrgDropdownOpen.value = false;
+});
+
 const filteredRooms = computed(() => {
     const query = searchQuery.value.toLowerCase().trim();
 
@@ -114,6 +130,18 @@ const filteredRooms = computed(() => {
 
     return props.rooms.filter(
         (room) => room.name.toLowerCase().includes(query) || room.floor.toLowerCase().includes(query)
+    );
+});
+
+const filteredOrgs = computed(() => {
+    const query = orgSearchQuery.value.toLowerCase().trim();
+
+    if (!query) {
+        return props.organizations;
+    }
+
+    return props.organizations.filter(
+        (org) => org.name.toLowerCase().includes(query) || org.shortname.toLowerCase().includes(query)
     );
 });
 
@@ -127,9 +155,23 @@ const selectedRoomName = computed(() => {
     return room ? `${room.name} (Lt. ${room.floor})` : 'Semua Ruangan';
 });
 
+const selectedOrgName = computed(() => {
+    if (activeOrgId.value === null) {
+        return 'Semua Divisi';
+    }
+
+    const org = props.organizations.find((o) => o.id === activeOrgId.value);
+
+    return org ? `${org.name} (${org.shortname})` : 'Semua Divisi';
+});
+
 // Get current selected room ID from filter props
 const activeRoomId = computed(() => {
     return props.filters.room_id ? parseInt(props.filters.room_id) : null;
+});
+
+const activeOrgId = computed(() => {
+    return props.filters.organization_id ? parseInt(props.filters.organization_id) : null;
 });
 
 // Month/Year navigation
@@ -155,8 +197,29 @@ const goToToday = () => {
 const filterByRoom = (roomId: number | null) => {
     const data: Record<string, any> = {};
 
+    if (props.filters.organization_id) {
+        data.organization_id = props.filters.organization_id;
+    }
+
     if (roomId !== null) {
         data.room_id = roomId;
+    }
+
+    router.get('/schedule', data, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const filterByOrg = (orgId: number | null) => {
+    const data: Record<string, any> = {};
+
+    if (props.filters.room_id) {
+        data.room_id = props.filters.room_id;
+    }
+
+    if (orgId !== null) {
+        data.organization_id = orgId;
     }
 
     router.get('/schedule', data, {
@@ -334,56 +397,115 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                 </div>
             </div>
 
-            <!-- Rooms Filter Dropdown -->
-            <div class="space-y-2 relative" ref="roomDropdownRef">
-                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter Ruangan</label>
-                <div>
-                    <!-- Dropdown Trigger Button -->
-                    <Button variant="outline" size="sm"
-                        class="flex items-center justify-between gap-2 w-full max-w-xs md:max-w-sm rounded-lg border-slate-200 dark:border-slate-800 text-left bg-white dark:bg-slate-900 font-medium px-3 py-2 text-sm text-slate-700 dark:text-slate-300 shadow-xs cursor-pointer"
-                        @click="isRoomDropdownOpen = !isRoomDropdownOpen">
-                        <span class="truncate">{{ selectedRoomName }}</span>
-                        <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
+            <!-- Filters Section -->
+            <div class="flex flex-col sm:flex-row gap-4">
+                <!-- Rooms Filter Dropdown -->
+                <div class="space-y-2 relative flex-1 max-w-xs md:max-w-sm" ref="roomDropdownRef">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter Ruangan</label>
+                    <div>
+                        <!-- Dropdown Trigger Button -->
+                        <Button variant="outline" size="sm"
+                            class="flex items-center justify-between gap-2 w-full rounded-lg border-slate-200 dark:border-slate-800 text-left bg-white dark:bg-slate-900 font-medium px-3 py-2 text-sm text-slate-700 dark:text-slate-300 shadow-xs cursor-pointer"
+                            @click="isRoomDropdownOpen = !isRoomDropdownOpen">
+                            <span class="truncate">{{ selectedRoomName }}</span>
+                            <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
 
-                    <!-- Dropdown Menu -->
-                    <div v-if="isRoomDropdownOpen"
-                        class="absolute left-0 z-50 mt-1.5 w-full max-w-xs md:max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100">
-                        <!-- Search Box Input -->
-                        <div class="flex items-center border-b border-slate-100 dark:border-slate-800 px-3 py-2">
-                            <Search class="h-4 w-4 shrink-0 text-slate-400 mr-2" />
-                            <input v-model="searchQuery" type="text" placeholder="Cari nama ruangan..."
-                                class="w-full bg-transparent border-0 p-0 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-0 focus:outline-hidden"
-                                autofocus />
-                        </div>
-
-                        <!-- Dropdown Options List -->
-                        <div
-                            class="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50 dark:divide-slate-800/40 bg-white dark:bg-slate-900">
-                            <!-- All Rooms Option (Default option) -->
-                            <button type="button"
-                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
-                                :class="activeRoomId === null ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
-                                @click="() => { filterByRoom(null); isRoomDropdownOpen = false; searchQuery = ''; }">
-                                <span>Semua Ruangan</span>
-                            </button>
-
-                            <!-- Filtered Rooms Options -->
-                            <div v-if="filteredRooms.length > 0" class="pt-1 space-y-0.5">
-                                <button v-for="room in filteredRooms" :key="room.id" type="button"
-                                    class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
-                                    :class="activeRoomId === room.id ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
-                                    @click="() => { filterByRoom(room.id); isRoomDropdownOpen = false; searchQuery = ''; }">
-                                    <div class="flex flex-col min-w-0">
-                                        <span class="truncate font-medium">{{ room.name }}</span>
-                                        <span class="text-xs text-muted-foreground">Lantai {{ room.floor }}</span>
-                                    </div>
-                                </button>
+                        <!-- Dropdown Menu -->
+                        <div v-if="isRoomDropdownOpen"
+                            class="absolute left-0 z-50 mt-1.5 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100">
+                            <!-- Search Box Input -->
+                            <div class="flex items-center border-b border-slate-100 dark:border-slate-800 px-3 py-2">
+                                <Search class="h-4 w-4 shrink-0 text-slate-400 mr-2" />
+                                <input v-model="searchQuery" type="text" placeholder="Cari nama ruangan..."
+                                    class="w-full bg-transparent border-0 p-0 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-0 focus:outline-hidden"
+                                    autofocus />
                             </div>
 
-                            <!-- Empty Search State -->
-                            <div v-else class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
-                                Tidak ada ruangan ditemukan
+                            <!-- Dropdown Options List -->
+                            <div
+                                class="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50 dark:divide-slate-800/40 bg-white dark:bg-slate-900">
+                                <!-- All Rooms Option (Default option) -->
+                                <button type="button"
+                                    class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                    :class="activeRoomId === null ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                    @click="() => { filterByRoom(null); isRoomDropdownOpen = false; searchQuery = ''; }">
+                                    <span>Semua Ruangan</span>
+                                </button>
+
+                                <!-- Filtered Rooms Options -->
+                                <div v-if="filteredRooms.length > 0" class="pt-1 space-y-0.5">
+                                    <button v-for="room in filteredRooms" :key="room.id" type="button"
+                                        class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                        :class="activeRoomId === room.id ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                        @click="() => { filterByRoom(room.id); isRoomDropdownOpen = false; searchQuery = ''; }">
+                                        <div class="flex flex-col min-w-0">
+                                            <span class="truncate font-medium">{{ room.name }}</span>
+                                            <span class="text-xs text-muted-foreground">Lantai {{ room.floor }}</span>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <!-- Empty Search State -->
+                                <div v-else class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                                    Tidak ada ruangan ditemukan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Divisi Filter Dropdown -->
+                <div class="space-y-2 relative flex-1 max-w-xs md:max-w-sm" ref="orgDropdownRef">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter Divisi</label>
+                    <div>
+                        <!-- Dropdown Trigger Button -->
+                        <Button variant="outline" size="sm"
+                            class="flex items-center justify-between gap-2 w-full rounded-lg border-slate-200 dark:border-slate-800 text-left bg-white dark:bg-slate-900 font-medium px-3 py-2 text-sm text-slate-700 dark:text-slate-300 shadow-xs cursor-pointer"
+                            @click="isOrgDropdownOpen = !isOrgDropdownOpen">
+                            <span class="truncate">{{ selectedOrgName }}</span>
+                            <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+
+                        <!-- Dropdown Menu -->
+                        <div v-if="isOrgDropdownOpen"
+                            class="absolute left-0 z-50 mt-1.5 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100">
+                            <!-- Search Box Input -->
+                            <div class="flex items-center border-b border-slate-100 dark:border-slate-800 px-3 py-2">
+                                <Search class="h-4 w-4 shrink-0 text-slate-400 mr-2" />
+                                <input v-model="orgSearchQuery" type="text" placeholder="Cari nama divisi..."
+                                    class="w-full bg-transparent border-0 p-0 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-0 focus:outline-hidden"
+                                    autofocus />
+                            </div>
+
+                            <!-- Dropdown Options List -->
+                            <div
+                                class="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50 dark:divide-slate-800/40 bg-white dark:bg-slate-900">
+                                <!-- All Orgs Option (Default option) -->
+                                <button type="button"
+                                    class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                    :class="activeOrgId === null ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                    @click="() => { filterByOrg(null); isOrgDropdownOpen = false; orgSearchQuery = ''; }">
+                                    <span>Semua Divisi</span>
+                                </button>
+
+                                <!-- Filtered Orgs Options -->
+                                <div v-if="filteredOrgs.length > 0" class="pt-1 space-y-0.5">
+                                    <button v-for="org in filteredOrgs" :key="org.id" type="button"
+                                        class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer flex items-center justify-between"
+                                        :class="activeOrgId === org.id ? 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 font-semibold' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'"
+                                        @click="() => { filterByOrg(org.id); isOrgDropdownOpen = false; orgSearchQuery = ''; }">
+                                        <div class="flex flex-col min-w-0">
+                                            <span class="truncate font-medium">{{ org.name }}</span>
+                                            <span class="text-xs text-muted-foreground">{{ org.shortname }}</span>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <!-- Empty Search State -->
+                                <div v-else class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                                    Tidak ada divisi ditemukan
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -648,13 +770,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
 
                                     <!-- Requester Info -->
                                     <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                                        <Users class="h-3.5 w-3.5" />
-                                        <span>Pemohon: {{ booking.requester.name }}</span>
-                                        <span v-if="booking.requester.org"
-                                            class="text-slate-300 dark:text-slate-700">|</span>
-                                        <span v-if="booking.requester.org"
-                                            class="font-medium text-slate-700 dark:text-slate-300">{{
-                                                booking.requester.org }}</span>
+                                        <Building2 class="h-3.5 w-3.5 text-slate-400" />
+                                        <span>Divisi Pemohon: {{ booking.requester.org || '-' }}</span>
                                     </div>
                                 </div>
 

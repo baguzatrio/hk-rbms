@@ -23,9 +23,10 @@ class OrganizationController extends Controller
             $organizations = Organization::query()
                 ->withCount('users')
                 ->when($search, function ($query, $search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('shortname', 'like', "%{$search}%");
+                    $searchLower = strtolower($search);
+                    $query->where(function ($q) use ($searchLower) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                          ->orWhereRaw('LOWER(shortname) LIKE ?', ["%{$searchLower}%"]);
                     });
                 })
                 ->latest()

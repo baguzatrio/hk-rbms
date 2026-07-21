@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 import axios from 'axios';
@@ -24,8 +24,20 @@ interface Room {
     capacity: number;
 }
 
+interface UserOption {
+    id: number;
+    name: string;
+    organization_id?: number;
+    organization?: {
+        id: number;
+        name: string;
+        shortname: string;
+    };
+}
+
 const props = defineProps<{
     rooms: Room[];
+    users: UserOption[];
 }>();
 
 // Breadcrumbs
@@ -67,11 +79,21 @@ const getInitialDate = () => {
 
 
 
+const page = usePage();
+
 const roomOptions = computed(() => {
     return props.rooms.map(room => ({
         id: room.id,
         label: room.name,
         description: `Lantai ${room.floor}, Kapasitas: ${room.capacity} Orang`
+    }));
+});
+
+const userOptions = computed(() => {
+    return props.users.map(u => ({
+        id: u.id,
+        label: u.name,
+        description: u.organization ? `${u.organization.name} (${u.organization.shortname})` : 'Tanpa Divisi'
     }));
 });
 
@@ -83,9 +105,14 @@ const form = ref({
     end_date: '',
     start_hour: '',
     finish_hour: '',
-    pic_name: '',
+    requester_id: (page.props.auth?.user as any)?.id || '' as string | number,
     participants: '',
     notes: '',
+});
+
+const selectedUserOrg = computed(() => {
+    const selectedUser = props.users.find(u => u.id === form.value.requester_id);
+    return selectedUser && selectedUser.organization ? `${selectedUser.organization.name} (${selectedUser.organization.shortname})` : 'Tanpa Divisi';
 });
 
 const errors = ref<Record<string, string>>({});
@@ -291,12 +318,20 @@ const submit = async () => {
                                 <InputError :message="errors.finish_hour" />
                             </div>
 
-                            <!-- PIC Name -->
+                            <!-- Pemohon / PIC Rapat -->
                             <div class="grid gap-2">
-                                <Label for="pic_name">Penanggung Jawab (PIC) <span class="text-red-500">*</span></Label>
-                                <Input id="pic_name" v-model="form.pic_name" type="text" placeholder="Nama PIC..."
-                                    class="w-full" />
-                                <InputError :message="errors.pic_name" />
+                                <Label for="requester_id">Pemohon / PIC Rapat <span class="text-red-500">*</span></Label>
+                                <SearchableSelect v-model="form.requester_id" :options="userOptions"
+                                    placeholder="Pilih Pemohon..." search-placeholder="Cari nama user..."
+                                    :allow-clear="false" />
+                                <InputError :message="errors.requester_id" />
+                            </div>
+
+                            <!-- Divisi Pemohon (Read-Only) -->
+                            <div class="grid gap-2">
+                                <Label for="selected_user_org">Divisi Pemohon</Label>
+                                <Input id="selected_user_org" :value="selectedUserOrg" type="text" readonly
+                                    class="w-full bg-slate-50 dark:bg-slate-850 text-slate-500 cursor-not-allowed border-slate-200 dark:border-slate-800 focus:ring-0 focus:border-slate-200 dark:focus:border-slate-800" />
                             </div>
                         </div>
 

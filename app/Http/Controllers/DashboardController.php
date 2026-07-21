@@ -16,13 +16,15 @@ class DashboardController extends Controller
         $isAdmin = $user->hasRole('admin');
 
         if ($isAdmin) {
+            $roomStats = $this->getRoomStats();
             return Inertia::render('Dashboard/AdminDashboard', [
                 'stats' => [
                     'pendingCount'  => Book::pending()->count(),
                     'approvedToday' => Book::approved()
                         ->whereDate('start_date', today())
                         ->count(),
-                    'totalRooms'    => Room::active()->count(),
+                    'occupiedRooms' => $roomStats['occupied'],
+                    'vacantRooms'   => $roomStats['vacant'],
                     'totalUsers'    => \App\Models\User::count(),
                 ],
                 'recentPending' => Book::pending()
@@ -71,5 +73,62 @@ class DashboardController extends Controller
                 'organization' => $book->requester->organization?->shortname,
             ] : null,
         ];
+    }
+
+    private function getRoomStats(): array
+    {
+        $nowDate = now()->toDateString();
+        $nowTime = now()->format('H:i:s');
+
+        $occupiedRoomIds = Book::approved()
+            ->where(function ($q) use ($nowDate) {
+                $q->whereDate('start_date', '<=', $nowDate)
+                  ->whereDate('end_date', '>=', $nowDate);
+            })
+            ->whereTime('start_hour', '<=', $nowTime)
+            ->whereTime('finish_hour', '>=', $nowTime)
+            ->pluck('room_id')
+            ->unique()
+            ->toArray();
+
+        $allActiveRooms = Room::active()->get(['id', 'name', 'floor']);
+        $occupiedRooms = [];
+        $vacantRooms = [];
+
+        foreach ($allActiveRooms as $room) {
+            if (in_array($room->id, $occupiedRoomIds)) {
+                $occupiedRooms[] = [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'floor' => $room->floor,
+                ];
+            } else {
+                $vacantRooms[] = [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'floor' => $room->floor,
+                ];
+            }
+        }
+
+        return [
+            'occupied' => $occupiedRooms,
+            'vacant'   => $vacantRooms,
+        ];
+    }
+
+    public function stats(Request $request)
+    {
+        abort_if(!$request->user()->hasRole('admin'), 403);
+        $roomStats = $this->getRoomStats();
+        return response()->json([
+            'pendingCount'  => Book::pending()->count(),
+            'approvedToday' => Book::approved()
+                ->whereDate('start_date', today())
+                ->count(),
+            'occupiedRooms' => $roomStats['occupied'],
+            'vacantRooms'   => $roomStats['vacant'],
+            'totalUsers'    => \App\Models\User::count(),
+        ]);
     }
 }

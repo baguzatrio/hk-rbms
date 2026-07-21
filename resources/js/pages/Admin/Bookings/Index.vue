@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
     CalendarPlus,
@@ -16,7 +16,8 @@ import {
     CheckSquare,
     XSquare,
     Building,
-    User
+    User,
+    Edit2
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { ref, watch, onMounted, computed } from 'vue';
@@ -65,14 +66,22 @@ interface PaginatedBookings {
     total: number;
 }
 
+interface Organization {
+    id: number;
+    name: string;
+    shortname: string;
+}
+
 const props = defineProps<{
     bookings?: PaginatedBookings;
     filters?: {
         status?: string;
         room_id?: string;
+        organization_id?: string;
         search?: string;
     };
     rooms: Room[];
+    organizations: Organization[];
 }>();
 
 const page = usePage();
@@ -94,6 +103,7 @@ const activeTab = ref<'approval' | 'all'>('approval');
 // Filters
 const statusFilter = ref(props.filters?.status || '');
 const roomFilter = ref(props.filters?.room_id || '');
+const orgFilter = ref(props.filters?.organization_id || '');
 const searchQuery = ref(props.filters?.search || '');
 
 // Selection state for Bulk Actions
@@ -153,6 +163,7 @@ const fetchBookings = async (pageNumber = 1) => {
                 page: pageNumber,
                 status: statusVal || undefined,
                 room_id: roomFilter.value || undefined,
+                organization_id: orgFilter.value || undefined,
                 search: searchQuery.value || undefined,
             },
         });
@@ -183,7 +194,7 @@ const applyFilters = () => {
     }, 200);
 };
 
-watch([statusFilter, roomFilter, searchQuery], applyFilters);
+watch([statusFilter, roomFilter, searchQuery, orgFilter], applyFilters);
 
 watch(activeTab, () => {
     selectedIds.value = [];
@@ -352,6 +363,29 @@ const handleApprove = (booking: BookingItem) => {
             }
         }
     });
+};
+
+const handleEditClick = (booking: BookingItem) => {
+    if (booking.status === 'approved') {
+        Swal.fire({
+            title: 'Booking Telah Disetujui',
+            text: 'Booking ini sudah berstatus Approved. Apakah Anda yakin ingin mengubah data booking ini?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#1e3a8a',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Ubah!',
+            cancelButtonText: 'Batal',
+            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.visit(`/admin/bookings/${booking.id}/edit`);
+            }
+        });
+    } else {
+        router.visit(`/admin/bookings/${booking.id}/edit`);
+    }
 };
 
 // Reject booking
@@ -637,6 +671,18 @@ const canShowCancel = (booking: BookingItem) => {
                             </select>
                         </div>
 
+                        <!-- Divisi Filter -->
+                        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span>Divisi:</span>
+                            <select v-model="orgFilter"
+                                class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-900 focus:border-blue-900 dark:focus:ring-blue-600 dark:focus:border-blue-600 transition-colors cursor-pointer">
+                                <option value="">Semua Divisi</option>
+                                <option v-for="org in organizations" :key="org.id" :value="org.id">
+                                    {{ org.name }} ({{ org.shortname }})
+                                </option>
+                            </select>
+                        </div>
+
                         <!-- Search Input -->
                         <div class="relative w-full max-w-[200px]">
                             <span
@@ -714,6 +760,12 @@ const canShowCancel = (booking: BookingItem) => {
                                             class="h-8 w-8 cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                                             title="Detail Booking" @click="openDetailModal(booking.id)">
                                             <Eye class="h-4 w-4" />
+                                        </Button>
+                                        <!-- Edit Button (Admin) -->
+                                        <Button variant="ghost" size="icon"
+                                            class="h-8 w-8 cursor-pointer text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200"
+                                            title="Edit Booking" @click="handleEditClick(booking)">
+                                            <Edit2 class="h-4 w-4" />
                                         </Button>
                                         <!-- Approve Button -->
                                         <Button v-if="booking.status === 'pending'" variant="ghost" size="icon"
