@@ -57,11 +57,6 @@ const userMenu: NavItem[] = [
         href: bookings.index(),
         icon: CalendarPlus,
     },
-    {
-        title: 'Jadwal Rapat',
-        href: schedule.index(),
-        icon: CalendarDays,
-    },
 ];
 
 const adminMenu = computed<NavItem[]>(() => [
@@ -112,7 +107,12 @@ const adminMenu = computed<NavItem[]>(() => [
         icon: CalendarDays,
     },
     {
-        title: 'Riwayat Booking',
+        isHeader: true,
+        title: 'Log System',
+        href: '#',
+    },
+    {
+        title: 'Activity Log',
         href: admin.logs.index(),
         icon: History,
     },

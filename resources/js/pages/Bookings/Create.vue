@@ -319,19 +319,12 @@ const submit = async () => {
                             </div>
 
                             <!-- Pemohon / PIC Rapat -->
-                            <div class="grid gap-2">
+                            <div class="grid gap-2 md:col-span-2">
                                 <Label for="requester_id">Pemohon / PIC Rapat <span class="text-red-500">*</span></Label>
                                 <SearchableSelect v-model="form.requester_id" :options="userOptions"
                                     placeholder="Pilih Pemohon..." search-placeholder="Cari nama user..."
                                     :allow-clear="false" />
                                 <InputError :message="errors.requester_id" />
-                            </div>
-
-                            <!-- Divisi Pemohon (Read-Only) -->
-                            <div class="grid gap-2">
-                                <Label for="selected_user_org">Divisi Pemohon</Label>
-                                <Input id="selected_user_org" :value="selectedUserOrg" type="text" readonly
-                                    class="w-full bg-slate-50 dark:bg-slate-850 text-slate-500 cursor-not-allowed border-slate-200 dark:border-slate-800 focus:ring-0 focus:border-slate-200 dark:focus:border-slate-800" />
                             </div>
                         </div>
 

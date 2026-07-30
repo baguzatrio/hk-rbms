@@ -42,7 +42,7 @@ class BookingController extends Controller
     {
         return Inertia::render('Bookings/Create', [
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => \App\Models\User::where('id', Auth::id())->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
@@ -104,6 +104,8 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // User hanya bisa membuat booking untuk dirinya sendiri
+        $validated['requester_id'] = Auth::id();
         $user = \App\Models\User::findOrFail($validated['requester_id']);
 
         $book = Book::create([
@@ -122,7 +124,7 @@ class BookingController extends Controller
 
     public function edit(Book $book): Response
     {
-        abort_if($book->requester_id !== Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
+        abort_if((int) $book->requester_id !== (int) Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
         abort_if($book->status !== 'pending', 403, 'Hanya booking dengan status pending yang dapat diubah.');
 
         return Inertia::render('Bookings/Edit', [
@@ -139,13 +141,13 @@ class BookingController extends Controller
                 'participants' => $book->participants,
             ],
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => \App\Models\User::where('id', Auth::id())->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
     public function update(Request $request, Book $book)
     {
-        abort_if($book->requester_id !== Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
+        abort_if((int) $book->requester_id !== (int) Auth::id(), 403, 'Anda tidak memiliki akses untuk mengubah booking ini.');
         abort_if($book->status !== 'pending', 403, 'Hanya booking dengan status pending yang dapat diubah.');
 
         $validated = $request->validate([
@@ -205,6 +207,8 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // User hanya bisa memperbarui booking untuk dirinya sendiri
+        $validated['requester_id'] = Auth::id();
         $user = \App\Models\User::findOrFail($validated['requester_id']);
 
         $book->update([
@@ -223,7 +227,7 @@ class BookingController extends Controller
     public function destroy(Book $book)
     {
         // User hanya bisa cancel booking miliknya sendiri yang masih pending
-        abort_if($book->requester_id !== Auth::id(), 403);
+        abort_if((int) $book->requester_id !== (int) Auth::id(), 403);
         
         if (!$book->isPending()) {
             return response()->json([
@@ -243,7 +247,7 @@ class BookingController extends Controller
 
     public function show(Book $book)
     {
-        abort_if($book->requester_id !== Auth::id(), 403);
+        abort_if((int) $book->requester_id !== (int) Auth::id(), 403);
 
         $book->load(['room', 'requester.organization']);
 

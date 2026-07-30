@@ -24,6 +24,9 @@ interface DashboardRoom {
     id: number;
     name: string;
     floor: string;
+    booking_title?: string;
+    start_hour?: string;
+    finish_hour?: string;
 }
 
 interface Stats {
@@ -80,10 +83,11 @@ const modalRooms = ref<DashboardRoom[]>([]);
 const openRoomsModal = (type: 'occupied' | 'vacant') => {
     if (type === 'occupied') {
         modalTitle.value = 'Daftar Ruangan Terpakai Saat Ini';
-        modalRooms.value = localStats.value.occupiedRooms;
+        modalRooms.value = [...localStats.value.occupiedRooms];
+        console.log("Occupied Rooms data in modal:", modalRooms.value);
     } else {
         modalTitle.value = 'Daftar Ruangan Tidak Terpakai Saat Ini';
-        modalRooms.value = localStats.value.vacantRooms;
+        modalRooms.value = [...localStats.value.vacantRooms];
     }
     isModalOpen.value = true;
 };
@@ -148,7 +152,7 @@ const formatDateDMY = (dateStr: string) => {
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <!-- Pending Booking -->
                 <Card class="border-slate-100 dark:border-slate-800">
                     <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -163,24 +167,6 @@ const formatDateDMY = (dateStr: string) => {
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
                             Booking menunggu diproses
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <!-- Approved Today -->
-                <Card class="border-slate-100 dark:border-slate-800">
-                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase">
-                            Rapat Hari Ini
-                        </CardTitle>
-                        <CheckCircle2 class="h-5 w-5 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold text-slate-900 dark:text-white">
-                            {{ localStats.approvedToday }}
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">
-                            Ruangan yang aktif disewa
                         </p>
                     </CardContent>
                 </Card>
@@ -342,9 +328,20 @@ const formatDateDMY = (dateStr: string) => {
                             Tidak ada ruangan dalam kategori ini.
                         </div>
                         <div v-else class="divide-y divide-slate-100 dark:divide-slate-800/60">
-                            <div v-for="room in modalRooms" :key="room.id" class="py-2.5 flex items-center justify-between first:pt-0 last:pb-0">
-                                <span class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ room.name }}</span>
-                                <span class="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-sm">Lantai {{ room.floor }}</span>
+                            <div v-for="room in modalRooms" :key="room.id" class="py-3 flex flex-col gap-1 first:pt-0 last:pb-0">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ room.name }}</span>
+                                    <span class="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-sm">Lantai {{ room.floor }}</span>
+                                </div>
+                                <div v-if="room.booking_title" class="flex flex-col gap-0.5 mt-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                                    <div class="font-semibold text-xs text-slate-900 dark:text-slate-100">
+                                        {{ room.booking_title }}
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+                                        <Clock class="h-3.5 w-3.5 text-slate-400" />
+                                        <span>{{ room.start_hour }} - {{ room.finish_hour }} WIB</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Organization;
 use App\Models\Book;
 use App\Models\Room;
 use App\Models\User;
@@ -64,13 +65,13 @@ class BookingController extends Controller
                 ]),
                 'filters' => $request->only(['status', 'room_id', 'search', 'organization_id']),
                 'rooms'   => Room::active()->select('id', 'name')->get(),
-                'organizations' => \App\Models\Organization::select('id', 'name', 'shortname')->get(),
+                'organizations' => Organization::select('id', 'name', 'shortname')->get(),
             ]);
         }
 
         return Inertia::render('Admin/Bookings/Index', [
             'rooms'   => Room::active()->select('id', 'name')->get(),
-            'organizations' => \App\Models\Organization::select('id', 'name', 'shortname')->get(),
+            'organizations' => Organization::select('id', 'name', 'shortname')->get(),
         ]);
     }
 
@@ -255,7 +256,7 @@ class BookingController extends Controller
     {
         return Inertia::render('Admin/Bookings/Create', [
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
@@ -316,7 +317,7 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $user = \App\Models\User::findOrFail($validated['requester_id']);
+        $user = User::findOrFail($validated['requester_id']);
 
         $book = Book::create([
             ...$validated,
@@ -351,7 +352,7 @@ class BookingController extends Controller
                 'participants' => $book->participants,
             ],
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => \App\Models\User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
@@ -414,7 +415,7 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $user = \App\Models\User::findOrFail($validated['requester_id']);
+        $user = User::findOrFail($validated['requester_id']);
 
         $book->update([
             ...$validated,

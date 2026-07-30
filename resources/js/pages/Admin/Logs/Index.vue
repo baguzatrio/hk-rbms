@@ -15,6 +15,7 @@ import {
 import { ref, watch, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import PaginationNav from '@/components/PaginationNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -508,20 +509,11 @@ const formatFieldLabel = (field: string): string => {
                     </span>
 
                     <!-- Pagination -->
-                    <div v-if="logs.links.length > 0" class="flex items-center gap-1 self-end lg:self-auto">
-                        <template v-for="(link, k) in logs.links" :key="k">
-                            <Link v-if="link.url" :href="link.url"
-                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
-                                :class="{
-                                    'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-bold': link.active,
-                                    'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
-                                }">
-                                <span v-html="cleanLabel(link.label)"></span>
-                            </Link>
-                            <span v-else v-html="cleanLabel(link.label)"
-                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
-                        </template>
-                    </div>
+                    <PaginationNav
+                        :links="logs.links"
+                        :use-inertia-link="true"
+                        class="self-end lg:self-auto"
+                    />
                 </div>
 
                 <div class="overflow-x-auto">

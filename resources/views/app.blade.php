@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: blob: data:; object-src 'none';">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>

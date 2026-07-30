@@ -19,6 +19,7 @@ import Swal from 'sweetalert2';
 import { ref, onMounted, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import PaginationNav from '@/components/PaginationNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -406,20 +407,10 @@ return dateStr;
                     </div>
 
                     <!-- Pagination Navigation -->
-                    <div v-if="usersData.links.length > 0" class="flex items-center gap-1">
-                        <template v-for="(link, k) in usersData.links" :key="k">
-                            <button type="button" v-if="link.url" @click="handlePageClick(link.url)"
-                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none"
-                                :class="{
-                                    'bg-blue-900 text-white border-blue-900 dark:bg-blue-600 dark:border-blue-600 font-semibold': link.active,
-                                    'text-slate-500 bg-transparent hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50': !link.active
-                                }">
-                                <span v-html="cleanLabel(link.label)"></span>
-                            </button>
-                            <span v-else v-html="cleanLabel(link.label)"
-                                class="px-2.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-800 transition-colors select-none text-slate-300 dark:text-slate-700" />
-                        </template>
-                    </div>
+                    <PaginationNav
+                        :links="usersData.links"
+                        :on-page-click="handlePageClick"
+                    />
                 </div>
 
                 <div class="overflow-x-auto">
@@ -469,9 +460,9 @@ return dateStr;
                                                 <Edit2 class="h-4 w-4" />
                                             </Link>
                                         </Button>
-                                        <Button variant="ghost" size="icon"
+                                        <Button v-if="page.props.auth?.user?.id !== user.id" variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
-                                            title="Hapus Akun" :disabled="page.props.auth.user.id === user.id"
+                                            title="Hapus Akun"
                                             @click="confirmDelete(user)">
                                             <Trash2 class="h-4 w-4" />
                                         </Button>

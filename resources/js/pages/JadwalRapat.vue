@@ -244,9 +244,19 @@ const formatDateString = (date: Date) => {
 };
 
 const getBookingsForDate = (date: Date) => {
+    if (isWeekend(date)) {
+        return [];
+    }
     const dateStr = formatDateString(date);
+    return props.bookings.filter(b => {
+        const start = b.start_date;
+        const end = b.end_date || b.start_date;
+        return dateStr >= start && dateStr <= end;
+    });
+};
 
-    return props.bookings.filter(b => b.start_date === dateStr);
+const isMultiDay = (booking: Booking) => {
+    return !!(booking.end_date && booking.end_date !== booking.start_date);
 };
 
 // Calendar Days calculation
@@ -309,7 +319,10 @@ const agendaBookings = computed(() => {
     const todayStr = formatDateString(new Date());
 
     return props.bookings
-        .filter(b => b.start_date >= todayStr)
+        .filter(b => {
+            const end = b.end_date || b.start_date;
+            return end >= todayStr;
+        })
         .sort((a, b) => {
             const dateCompare = a.start_date.localeCompare(b.start_date);
 
@@ -337,6 +350,14 @@ const formatDateLong = (dateStr: string) => {
     return date.toLocaleDateString('id-ID', options);
 };
 
+const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    return `${day}-${month}-${year}`;
+};
+
 // Check if date is Saturday (6) or Sunday (0)
 const isWeekend = (date: Date) => {
     const day = date.getDay();
@@ -345,7 +366,8 @@ const isWeekend = (date: Date) => {
 };
 
 // Check if booking is in the past
-const isPastBooking = (dateStr: string, finishHour: string) => {
+const isPastBooking = (dateVal: string | Date, finishHour: string) => {
+    const dateStr = typeof dateVal === 'string' ? dateVal : formatDateString(dateVal);
     const todayStr = formatDateString(new Date());
 
     if (dateStr < todayStr) {
@@ -538,8 +560,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                 </div>
 
                 <!-- Calendar Grid -->
-                <Card class="border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm">
-                    <CardContent class="p-0">
+                <Card class="border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm h-[780px] flex flex-col">
+                    <CardContent class="p-0 flex-1 overflow-y-auto">
                         <!-- Days of Week Header -->
                         <div
                             class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-center py-3 text-xs font-semibold">
@@ -558,7 +580,9 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                             <div v-for="(day, index) in daysInMonth" :key="index"
                                 class="p-2 transition-all relative flex flex-col group bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                 :class="[
-                                    day.isCurrentMonth ? '' : 'bg-slate-50/50 dark:bg-slate-900/30 text-slate-400 dark:text-slate-600',
+                                    day.isCurrentMonth
+                                        ? (isWeekend(day.date) ? 'bg-red-50/10 dark:bg-red-950/5' : '')
+                                        : 'bg-slate-50/50 dark:bg-slate-900/30 text-slate-400 dark:text-slate-600',
                                     day.isToday ? 'bg-blue-50/20 dark:bg-blue-950/10' : ''
                                 ]" @click="selectDate(day.date)">
                                 <!-- Day Number / Today Badge -->
@@ -586,7 +610,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                 <div class="flex-1 space-y-1 overflow-y-hidden hidden sm:block">
                                     <div v-for="booking in day.bookings.slice(0, 2)" :key="booking.id"
                                         class="px-1.5 py-0.5 text-[10px] rounded-md border truncate font-medium transition-colors"
-                                        :class="isPastBooking(booking.start_date, booking.finish_hour)
+                                        :class="isPastBooking(day.date, booking.finish_hour)
                                             ? 'bg-slate-100/70 border-slate-200/60 text-slate-400 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-500 line-through'
                                             : 'bg-indigo-50 border-indigo-100 text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-900/40 dark:text-indigo-300'">
                                         {{ booking.start_hour.substring(0, 5) }} - {{ booking.title }}
@@ -604,8 +628,8 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
 
             <!-- Agenda View Mode -->
             <div v-else-if="viewMode === 'agenda'" class="space-y-4">
-                <Card class="border-slate-100 dark:border-slate-800/80 shadow-sm">
-                    <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50">
+                <Card class="border-slate-100 dark:border-slate-800/80 shadow-sm h-[780px] flex flex-col">
+                    <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50 shrink-0">
                         <div class="flex items-center justify-between">
                             <div>
                                 <CardTitle class="text-lg text-blue-900 dark:text-blue-400 flex items-center gap-2">
@@ -621,7 +645,7 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent class="p-6">
+                    <CardContent class="p-6 flex-1 overflow-y-auto">
                         <div v-if="agendaBookings.length === 0" class="py-16 text-center">
                             <CalendarIcon class="h-10 w-10 text-slate-300 mx-auto mb-3" />
                             <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada agenda rapat
@@ -689,7 +713,12 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                             <div
                                                 class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
                                                 <CalendarIcon class="h-4 w-4 text-slate-400" />
-                                                <span>{{ formatDateLong(booking.start_date) }}</span>
+                                                <span v-if="isMultiDay(booking)">
+                                                    {{ formatDateDMY(booking.start_date) }} s.d. {{ formatDateDMY(booking.end_date!) }}
+                                                </span>
+                                                <span v-else>
+                                                    {{ formatDateLong(booking.start_date) }}
+                                                </span>
                                             </div>
                                             <div
                                                 class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
@@ -747,10 +776,10 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                 <div class="space-y-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h3 class="text-sm font-bold text-slate-900 dark:text-white"
-                                            :class="isPastBooking(booking.start_date, booking.finish_hour) ? 'line-through text-slate-400' : ''">
+                                            :class="isPastBooking(selectedCalendarDate!, booking.finish_hour) ? 'line-through text-slate-400' : ''">
                                             {{ booking.title }}
                                         </h3>
-                                        <Badge v-if="isPastBooking(booking.start_date, booking.finish_hour)"
+                                        <Badge v-if="isPastBooking(selectedCalendarDate!, booking.finish_hour)"
                                             variant="outline"
                                             class="text-[9px] py-0 px-1.5 text-slate-400 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                                             Selesai
@@ -772,6 +801,17 @@ const isPastBooking = (dateStr: string, finishHour: string) => {
                                     <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                                         <Building2 class="h-3.5 w-3.5 text-slate-400" />
                                         <span>Divisi Pemohon: {{ booking.requester.org || '-' }}</span>
+                                    </div>
+
+                                    <!-- Tanggal Rapat -->
+                                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                        <CalendarIcon class="h-3.5 w-3.5 text-slate-400" />
+                                        <span v-if="isMultiDay(booking)">
+                                            Tanggal: {{ formatDateDMY(booking.start_date) }} s.d. {{ formatDateDMY(booking.end_date!) }}
+                                        </span>
+                                        <span v-else>
+                                            Tanggal: {{ formatDateDMY(booking.start_date) }}
+                                        </span>
                                     </div>
                                 </div>
 
