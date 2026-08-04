@@ -148,6 +148,7 @@ class BookingController extends Controller
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:books,id']);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Book> $bookings */
         $bookings = Book::with('room')
             ->whereIn('id', $request->ids)
             ->where('status', 'pending')
@@ -156,6 +157,7 @@ class BookingController extends Controller
         $approvedCount = 0;
         $errors = [];
 
+        /** @var Book $book */
         foreach ($bookings as $book) {
             if (Book::hasConflict(
                 $book->room_id,
@@ -256,7 +258,7 @@ class BookingController extends Controller
     {
         return Inertia::render('Admin/Bookings/Create', [
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::withoutRole('admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
@@ -352,7 +354,7 @@ class BookingController extends Controller
                 'participants' => $book->participants,
             ],
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::withoutRole('admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 

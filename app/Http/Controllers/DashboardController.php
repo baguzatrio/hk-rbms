@@ -31,7 +31,7 @@ class DashboardController extends Controller
                     ->latest()
                     ->take(5)
                     ->get()
-                    ->map(fn($b) => $this->formatBook($b)),
+                    ->map(fn(Book $b) => $this->formatBook($b)),
             ]);
         }
 
@@ -51,14 +51,14 @@ class DashboardController extends Controller
             });
         }
 
-        $calendarBookings = $calendarQuery->get()->map(fn($b) => [
+        $calendarBookings = $calendarQuery->get()->map(fn(Book $b) => [
             'id'          => $b->id,
             'title'       => $b->title,
             'start_date'  => $b->start_date->format('Y-m-d'),
             'end_date'    => $b->end_date?->format('Y-m-d'),
             'start_hour'  => $b->start_hour,
             'finish_hour' => $b->finish_hour,
-            'room'        => ['id' => $b->room->id, 'name' => $b->room->name],
+            'room'        => ['id' => $b->room->id, 'name' => $b->room->name, 'floor' => $b->room->floor],
             'requester'   => [
                 'name' => $b->requester->name,
                 'org'  => $b->requester->organization?->shortname,
@@ -71,12 +71,12 @@ class DashboardController extends Controller
                 ->latest()
                 ->take(5)
                 ->get()
-                ->map(fn($b) => $this->formatBook($b)),
+                ->map(fn(Book $b) => $this->formatBook($b)),
             'todaySchedule' => $this->activeTodayQuery($roomId, $orgId)
                 ->with('room')
                 ->orderBy('start_hour')
                 ->get()
-                ->map(fn($b) => $this->formatBook($b)),
+                ->map(fn(Book $b) => $this->formatBook($b)),
             'bookings'      => $calendarBookings,
             'rooms'         => Room::active()->select('id', 'name', 'floor')->get(),
             'organizations' => \App\Models\Organization::select('id', 'name', 'shortname')->get(),

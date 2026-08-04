@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
+
+const router = useRouter();
 
 interface Room {
     id: number;
@@ -65,7 +67,7 @@ const submit = async () => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/admin/rooms');
+        router.push('/admin/rooms');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;
@@ -90,18 +92,15 @@ const submit = async () => {
 </script>
 
 <template>
-
-    <Head title="Edit Ruangan" />
-
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-6 max-w-4xl mx-auto">
             <!-- Header Section -->
             <div class="flex items-center gap-4">
                 <Button as-child variant="outline" size="icon"
                     class="h-8 w-8 cursor-pointer rounded-lg border-slate-200 dark:border-slate-800">
-                    <Link href="/admin/rooms">
-                        <ArrowLeft class="h-4 w-4 text-slate-500" />
-                    </Link>
+                    <RouterLink to="/admin/rooms">
+                        <ArrowLeft class="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                    </RouterLink>
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -174,8 +173,8 @@ const submit = async () => {
                         <!-- Action Buttons -->
                         <div
                             class="flex items-center justify-end gap-3 border-t border-slate-50 dark:border-slate-800/60 pt-4 mt-6">
-                            <Button as-child variant="ghost" class="cursor-pointer">
-                                <Link href="/admin/rooms">Batal</Link>
+                            <Button as-child variant="outline" class="cursor-pointer">
+                                <RouterLink to="/admin/rooms">Batal</RouterLink>
                             </Button>
                             <Button type="submit" :disabled="isSubmitting"
                                 class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 cursor-pointer shadow-xs">

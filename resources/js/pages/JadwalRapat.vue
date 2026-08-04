@@ -39,6 +39,7 @@ interface Booking {
     room: {
         id: number;
         name: string;
+        floor?: string;
     };
     requester: {
         name: string;
@@ -692,7 +693,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                                             <div
                                                 class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                                                 <Building2 class="h-3.5 w-3.5 text-slate-400" />
-                                                <span>{{ booking.room.name }}</span>
+                                                <span>{{ booking.room.name }} <template v-if="booking.room?.floor">(Lt. {{ booking.room.floor }})</template></span>
                                             </div>
 
                                             <!-- Requester Info -->

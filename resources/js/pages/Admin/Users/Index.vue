@@ -16,7 +16,7 @@ import {
     Loader2
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import PaginationNav from '@/components/PaginationNav.vue';
@@ -79,8 +79,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// State variables
 const page = usePage();
+const currentUser = computed(() => (page.props.auth as any)?.user);
 const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
 let searchTimeout: any = null;
@@ -114,13 +114,21 @@ const fetchUsers = async (pageNumber = 1) => {
             },
         });
 
-        usersData.value = response.data.users;
+        if (response.data.users) {
+            usersData.value = response.data.users;
+        } else {
+            usersData.value = response.data;
+        }
     } catch (err) {
         console.error('Error fetching users:', err);
     } finally {
         isLoading.value = false;
     }
 };
+
+onMounted(() => {
+    fetchUsers(1);
+});
 
 const handlePageClick = (url: string) => {
     const urlObj = new URL(url);
@@ -145,40 +153,9 @@ watch(perPage, () => {
     fetchUsers(1);
 });
 
-// Flash messages
-const checkFlashMessages = () => {
-    const flash = page.props.flash as any;
-    const errors = page.props.errors as any;
-
-    if (flash?.success) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: flash.success,
-            icon: 'success',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-
-    if (errors?.error) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: errors.error,
-            icon: 'error',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-};
-
 onMounted(() => {
     fetchUsers(usersData.value.current_page);
-    checkFlashMessages();
 });
-watch(() => page.props.flash, checkFlashMessages, { deep: true });
-watch(() => page.props.errors, checkFlashMessages, { deep: true });
 
 // Confirm Delete User
 const confirmDelete = (user: UserItem) => {
@@ -368,13 +345,14 @@ return dateStr;
                         Manajemen Pengguna
                     </h1>
                 </div>
-                <Button as-child
-                    class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 shadow-xs cursor-pointer">
-                    <Link href="/admin/users/create">
-                        <Plus class="h-4 w-4" />
-                        Tambah Pengguna
-                    </Link>
-                </Button>
+                <RouterLink to="/admin/users/create" custom v-slot="{ href, navigate }">
+                    <Button as-child class="bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white gap-2 shadow-xs cursor-pointer">
+                        <a :href="href" @click="navigate">
+                            <Plus class="h-4 w-4" />
+                            Tambah Pengguna
+                        </a>
+                    </Button>
+                </RouterLink>
             </div>
 
             <!-- Table Card Container -->
@@ -460,7 +438,7 @@ return dateStr;
                                                 <Edit2 class="h-4 w-4" />
                                             </Link>
                                         </Button>
-                                        <Button v-if="page.props.auth?.user?.id !== user.id" variant="ghost" size="icon"
+                                        <Button v-if="currentUser?.id !== user.id" variant="ghost" size="icon"
                                             class="h-8 w-8 cursor-pointer text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
                                             title="Hapus Akun"
                                             @click="confirmDelete(user)">

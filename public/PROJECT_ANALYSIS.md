@@ -5,7 +5,7 @@
 
 ## 📌 Executive Summary
 
-**HK-RBMS** (Hutama Karya Room Booking Management System) adalah aplikasi manajemen pemesanan ruang rapat dan jadwal kegiatan internal berbasis web. Aplikasi ini dirancang untuk memfasilitasi pengguna (pegawai) dalam melakukan pengajuan booking ruangan secara mandiri, memberikan kendali penuh kepada Administrator untuk persetujuan (approval) dan pengelolaan master data, serta menyediakan tampilan **Real-Time Room TV Display** untuk memantau agenda rapat di depan setiap ruangan.
+**HK-RBMS** (Hutama Karya Room Booking Management System) adalah aplikasi manajemen pemesanan ruang rapat dan jadwal kegiatan internal berbasis web. Aplikasi ini dirancang untuk memfasilitasi pengguna (pegawai) dalam melakukan pengajuan booking ruangan secara mandiri, memberikan kendali penuh kepada Administrator untuk persetujuan (*approval*), penolakan (*rejection*), dan pengelolaan *master data*, serta menyediakan tampilan **Real-Time Room TV Display** untuk memantau agenda rapat di depan setiap ruangan.
 
 ---
 
@@ -13,16 +13,17 @@
 
 ### **1. Backend Framework & Libraries**
 - **Core Framework**: [Laravel 12](https://laravel.com/) (PHP 8.2+)
-- **SPA Bridge**: [Inertia.js v2](https://inertiajs.com/) (Menghubungkan Laravel backend dengan Vue 3 frontend secara seamless tanpa perlu REST API terpisah)
+- **SPA & Routing**: [Inertia.js v2](https://inertiajs.com/) + Vue Router (`vue-router` v4) & Axios REST API Bridge.
 - **Authentication**: Laravel Fortify (Autentikasi, Password Reset, & Two-Factor Authentication / 2FA)
+- **API Security**: Laravel Sanctum (Autentikasi Token & Session-based API Guard)
 - **Role & Access Control**: Spatie Laravel Permission (`spatie/laravel-permission`)
-- **Sanctum**: Laravel Sanctum (Autentikasi token untuk endpoint API)
 - **Database ORM**: Eloquent ORM dengan relasi presisi & query optimization
 
 ### **2. Frontend Framework & UI Libraries**
 - **Core UI Engine**: Vue 3 (Composition API `<script setup>` + TypeScript)
-- **Styling**: Tailwind CSS v4 (Desain modern, responsif, dukungan Dark Mode dinamis)
-- **Component Library**: Shadcn Vue / Reka UI + custom UI primitives (`Card`, `Button`, `Badge`, `Input`, `Dialog`, `SearchableSelect`)
+- **State Management**: Reactive Auth Store (`authStore` via Vue `reactive` & `computed`)
+- **Styling**: Tailwind CSS v4 (Desain modern & responsif)
+- **Component Library**: Shadcn Vue / Reka UI + Custom UI Primitives (`Card`, `Button`, `Badge`, `Input`, `Dialog`, `DropdownMenu`, `SearchableSelect`, `PaginationNav`)
 - **Iconography**: Lucide Vue Next (`lucide-vue-next`)
 - **Date & Time Picker**: VueDatePicker (`@vuepic/vue-datepicker`)
 - **Alerts & Modals**: SweetAlert2 (`sweetalert2`)
@@ -57,7 +58,7 @@ Sistem menggunakan database relasional dengan tabel-tabel utama berikut:
 2. **`organizations`** (Divisi / Unit Kerja)
    - `id`: BigInteger (Primary Key)
    - `name`: String (Nama Divisi Lengkap)
-   - `shortname`: String (Singkatan Divisi, misal: *IT*, *HC*, *FIN*)
+   - `shortname`: String (Singkatan Divisi, misal: *IT*, *HC*, *FIN*, *CORSEC*)
 
 3. **`rooms`** (Ruang Rapat)
    - `id`: BigInteger (Primary Key)
@@ -85,6 +86,14 @@ Sistem menggunakan database relasional dengan tabel-tabel utama berikut:
 5. **`activity_logs`** (Audit Trail System)
    - Mencatat seluruh aktivitas penting (Create, Update, Delete, Approval/Rejection) oleh user & admin.
 
+### **Seeder Modular (`database/seeders/`)**
+- **`DatabaseSeeder`**: Memanggil seeder secara sekuensial:
+  - `UserSeeder` (Akun Admin & User default)
+  - `RoleSeeder` (Roles & Permissions Spatie)
+  - `OrganizationSeeder` (Daftar Divisi Organisasi)
+  - `RoomSeeder` (Master Ruang Rapat & Kapasitas)
+  - `BookingSeeder` (Dummy Data Pemesanan Ruangan)
+
 ---
 
 ## 🔐 User Roles & Access Control (RBAC)
@@ -95,11 +104,11 @@ Aplikasi memiliki 3 tingkat akses utama:
 | :--- | :---: | :---: | :---: |
 | **TV Display Ruangan (`/display/{room}`)** | ✅ | ✅ | ✅ |
 | **User Dashboard & Kalender Agenda** | ❌ | ✅ | ✅ |
-| **Pengajuan Booking Ruangan** | ❌ | ✅ (Otomatis Lock Pemohon & Divisi) | ✅ (Bisa Pilih Mana Saja User/Divisi) |
+| **Pengajuan Booking Ruangan** | ❌ | ✅ (Otomatis Lock Pemohon & Divisi) | ✅ (Bisa Pilih User/Divisi Mana Saja) |
 | **Ubah / Batalkan Booking Mandiri** | ❌ | ✅ (Status Pending) | ✅ |
-| **Approval / Rejection Booking** | ❌ | ❌ | ✅ |
+| **Approval / Rejection (Individu & Bulk)** | ❌ | ❌ | ✅ |
 | **Manajemen Master Ruangan** | ❌ | ❌ | ✅ |
-| **Manajemen Master User & Role** | ❌ | ❌ | ✅ |
+| **Manajemen Master User & Reset Password** | ❌ | ❌ | ✅ |
 | **Manajemen Master Divisi (Organization)** | ❌ | ❌ | ✅ |
 | **Audit Logs & Export Laporan** | ❌ | ❌ | ✅ (Export PDF/Excel/Print) |
 
@@ -122,22 +131,25 @@ Aplikasi memiliki 3 tingkat akses utama:
    - Saat pengguna ber-role `user` membuat atau mengedit booking, sistem secara otomatis mengunci nama pemohon dan divisi sesuai akun pengguna yang sedang login.
 
 5. **Perlindungan Akun Admin (Self-Protection Safety)**:
-   - Administrator tidak dapat menghapus akunnya sendiri melalui panel manajemen user (`v-if="page.props.auth.user.id !== user.id"`).
+   - Administrator tidak dapat menghapus akunnya sendiri melalui panel manajemen user (`v-if="currentUser?.id !== user.id"`).
+
+6. **Mass Action / Bulk Operations**:
+   - Administrator dapat menyetujui (*bulk approve*) atau menolak (*bulk reject*) banyak pengajuan pemesanan secara bersamaan melalui fitur *checkbox selection*.
 
 ---
 
 ## 🚀 Key Modules & UI/UX Features
 
 ### 1. **User Dashboard (`resources/js/pages/Dashboard/UserDashboard.vue`)**
-- **Card Agenda Rapat (Atas)**: Toggle switcher antara tab **Hari Ini** (menampilkan rapat aktif hari ini) dan tab **Mendatang** (dengan paginasi 10 item per halaman).
+- **Card Agenda Rapat**: Toggle switcher antara tab **Hari Ini** (menampilkan rapat aktif hari ini) dan tab **Mendatang** (dengan paginasi item per halaman).
 - **Interactive Calendar Grid**: Kalender bulanan yang menampilkan jadwal rapat per tanggal dengan modal detail rapat saat cell diklik.
-- **Filter Ruangan & Divisi**: Filter interaktif real-time untuk menyaring agenda rapat.
+- **Filter Ruangan & Divisi**: Filter interaktif real-time untuk menyaring agenda rapat berdasarkan divisi maupun ruangan.
 
 ### 2. **Admin Dashboard & Management (`resources/js/pages/Admin/`)**
 - **Pengelolaan Approval**: Admin dapat menyetujui (*approve*) atau menolak (*reject*) booking dengan menyertakan alasan penolakan.
 - **Master Ruangan & Divisi**: Manajemen status ruangan (Aktif vs Maintenance), kapasitas, dan daftar divisi organisasi.
-- **Master User**: Penambahan, pengeditan profil, dan manajemen role pengguna.
-- **Export Laporan**: Fasilitas cetak/export rekapitulasi booking dan audit log.
+- **Master User**: Penambahan, pengeditan profil, manajemen role pengguna, dan fitur *reset password*.
+- **Export Laporan & Audit Log**: Fasilitas cetak/export rekapitulasi booking dan audit log aktivitas pengguna.
 
 ### 3. **Public TV Display (`resources/js/pages/Display/RoomDisplay.vue`)**
 - Tampilan mode layar penuh (*full-screen TV Display*) di depan setiap ruang rapat yang menampilkan nama ruangan, rapat berjalan (*current meeting*), serta daftar rapat berikutnya (*next meetings*).
@@ -151,21 +163,25 @@ hk-rbms/
 ├── app/
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── Admin/ (BookingController, RoomController, UserController, dll)
+│   │   │   ├── Admin/ (BookingController, RoomController, UserController, OrganizationController, ActivityLogController)
 │   │   │   ├── BookingController.php (User side)
 │   │   │   ├── DashboardController.php
 │   │   │   └── ScheduleController.php
 │   │   └── Middleware/ (HandleInertiaRequests.php, HandleAppearance.php)
-│   └── Models/ (Book.php, Room.php, Organization.php, User.php)
+│   └── Models/ (Book.php, Room.php, Organization.php, User.php, ActivityLog.php)
 ├── database/
 │   ├── migrations/ (Skema tabel & relasi database)
-│   └── seeders/ (Data awal admin, ruangan, divisi)
+│   └── seeders/ (DatabaseSeeder, UserSeeder, RoleSeeder, OrganizationSeeder, RoomSeeder, BookingSeeder)
 ├── public/
 │   └── PROJECT_ANALYSIS.md (Dokumen Analisis Proyek Ini)
 ├── resources/
 │   ├── js/
-│   │   ├── components/ (SearchableSelect, PaginationNav, UI Primitives)
-│   │   ├── layouts/ (AppLayout, AuthLayout)
+│   │   ├── components/ (SearchableSelect, PaginationNav, UserInfo, UserMenuContent, UI Primitives)
+│   │   ├── composables/ (useInitials, useAppearance)
+│   │   ├── layouts/ (AppLayout, AuthLayout, SettingsLayout)
+│   │   ├── routes/ (Vue Router Route Definitions)
+│   │   ├── stores/ (authStore - Reactive Store Authentication State)
+│   │   ├── types/ (User, Book, Room, Organization, Navigation types)
 │   │   └── pages/
 │   │       ├── Admin/ (Bookings, Rooms, Users, Organizations, ActivityLogs)
 │   │       ├── Bookings/ (Create.vue, Edit.vue, Index.vue)
@@ -175,11 +191,11 @@ hk-rbms/
 │       └── app.blade.php (Root HTML template)
 └── routes/
     ├── web.php (Route terautentikasi & admin)
-    ├── api.php (API endpoint Sanctum)
+    ├── api.php (REST API endpoints Sanctum)
     └── settings.php (Profil & Security)
 ```
 
 ---
 
 ## 📌 Kesimpulan & Status Sistem
-Proyek **HK-RBMS** telah selesai diimplementasikan secara solid dengan arsitektur arsitektur modern berbasis **Laravel 12 + Inertia.js + Vue 3**, menyajikan performa SPA (*Single Page Application*) yang cepat, UI/UX responsif, dan keamanan berbasis *Role-Based Access Control* (RBAC) yang teruji.
+Proyek **HK-RBMS** telah berhasil diperbarui dan disempurnakan dengan arsitektur berbasis **Laravel 13 + Inertia.js v2 + Vue 3 (Vue Router & REST API)**, menyajikan performa SPA (*Single Page Application*) yang intuitif, UI/UX responsif dengan Tailwind CSS v4, serta keamanan berbasis *Role-Based Access Control* (RBAC) yang solid.

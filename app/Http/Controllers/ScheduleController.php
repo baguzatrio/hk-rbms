@@ -36,7 +36,7 @@ class ScheduleController extends Controller
             'end_date'    => $b->end_date?->format('Y-m-d'),
             'start_hour'  => $b->start_hour,
             'finish_hour' => $b->finish_hour,
-            'room'        => ['id' => $b->room->id, 'name' => $b->room->name],
+            'room'        => ['id' => $b->room->id, 'name' => $b->room->name, 'floor' => $b->room->floor],
             'requester'   => [
                 'name' => $b->requester->name,
                 'org'  => $b->requester->organization?->shortname,
