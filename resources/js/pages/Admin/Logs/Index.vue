@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 import {
@@ -12,7 +12,9 @@ import {
     ShieldAlert,
     Monitor
 } from 'lucide-vue-next';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import axios from 'axios';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import PaginationNav from '@/components/PaginationNav.vue';
@@ -56,9 +58,9 @@ interface PaginatedLogs {
     total: number;
 }
 
-const props = defineProps<{
-    logs: PaginatedLogs;
-    actions: string[];
+const props = withDefaults(defineProps<{
+    logs?: PaginatedLogs;
+    actions?: string[];
     filters?: {
         start_month?: string;
         end_month?: string;
@@ -66,7 +68,10 @@ const props = defineProps<{
         status_filter?: string;
         search?: string;
     };
-}>();
+}>(), {
+    logs: () => ({ data: [], links: [], current_page: 1, per_page: 15, last_page: 1, total: 0 }),
+    actions: () => [],
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin Dashboard', href: '/dashboard' },
@@ -79,6 +84,45 @@ const endMonth = ref(props.filters?.end_month || '');
 const modulFilter = ref(props.filters?.modul_filter || 'all');
 const statusFilter = ref(props.filters?.status_filter || 'all');
 const searchQuery = ref(props.filters?.search || '');
+
+// Reactive API data
+const logsData = ref<PaginatedLogs>({
+    data: props.logs?.data || [],
+    links: props.logs?.links || [],
+    current_page: props.logs?.current_page || 1,
+    per_page: props.logs?.per_page || 15,
+    last_page: props.logs?.last_page || 1,
+    total: props.logs?.total || 0,
+});
+const actionsList = ref<string[]>(props.actions || []);
+const isLoading = ref(false);
+
+const fetchLogs = async (pageNumber = 1) => {
+    isLoading.value = true;
+    try {
+        const response = await axios.get('/api/v1/admin/activity-logs', {
+            params: {
+                page: pageNumber,
+                start_month: startMonth.value || undefined,
+                end_month: endMonth.value || undefined,
+                modul_filter: modulFilter.value !== 'all' ? modulFilter.value : undefined,
+                status_filter: statusFilter.value !== 'all' ? statusFilter.value : undefined,
+                search: searchQuery.value || undefined,
+            }
+        });
+        const resData = response.data;
+        logsData.value = resData.logs || resData.data || logsData.value;
+        if (resData.actions && Array.isArray(resData.actions)) {
+            actionsList.value = resData.actions;
+        }
+    } catch (err) {
+        console.error('Error fetching logs:', err);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+onMounted(() => { fetchLogs(logsData.value.current_page); });
 
 // Helper to convert YYYY-MM string to month picker object { month, year }
 const parseMonthStr = (str: string) => {
@@ -117,22 +161,23 @@ const handleEndMonth = (val: any) => {
     }
 };
 
+const handlePageClick = (url: string) => {
+    try {
+        const u = new URL(url);
+        const p = u.searchParams.get('page');
+        if (p) fetchLogs(parseInt(p));
+    } catch (_) {}
+};
+
+const router = useRouter();
+const route = useRoute();
 let filterTimeout: any;
 
 const applyFilters = () => {
     clearTimeout(filterTimeout);
     filterTimeout = setTimeout(() => {
-        router.get('/admin/logs', {
-            start_month: startMonth.value || undefined,
-            end_month: endMonth.value || undefined,
-            modul_filter: modulFilter.value !== 'all' ? modulFilter.value : undefined,
-            status_filter: statusFilter.value !== 'all' ? statusFilter.value : undefined,
-            search: searchQuery.value || undefined,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, 150);
+        fetchLogs(1);
+    }, 300);
 };
 
 watch([startMonth, endMonth, modulFilter, statusFilter, searchQuery], applyFilters);
@@ -236,8 +281,8 @@ const submitExport = () => {
         queryParams.search = searchQuery.value;
     }
 
-    const url = `/admin/logs/export?` + new URLSearchParams(queryParams).toString();
-    window.location.href = url;
+    const url = `/api/v1/admin/activity-logs/export?` + new URLSearchParams(queryParams).toString();
+    window.open(url, '_blank');
     closeExportModal();
 };
 
@@ -465,7 +510,7 @@ const formatFieldLabel = (field: string): string => {
                         <select v-model="modulFilter"
                             class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-900 dark:focus:ring-blue-600 cursor-pointer">
                             <option value="all">Semua Modul</option>
-                            <option v-for="act in actions" :key="act" :value="act">
+                            <option v-for="act in actionsList" :key="act" :value="act">
                                 {{ translateAction(act) }}
                             </option>
                         </select>
@@ -505,13 +550,13 @@ const formatFieldLabel = (field: string): string => {
                 <div
                     class="p-4 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
                     <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Total Aktivitas: {{ logs.total }} Baris
+                        Total Aktivitas: {{ logsData.total }} Baris
                     </span>
 
                     <!-- Pagination -->
                     <PaginationNav
-                        :links="logs.links"
-                        :use-inertia-link="true"
+                        :links="logsData.links"
+                        :on-page-click="handlePageClick"
                         class="self-end lg:self-auto"
                     />
                 </div>
@@ -532,17 +577,17 @@ const formatFieldLabel = (field: string): string => {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                             <!-- Empty State -->
-                            <tr v-if="logs.data.length === 0">
+                            <tr v-if="logsData.data.length === 0">
                                 <td colspan="7" class="p-16 text-center text-slate-400">
                                     Tidak ada catatan aktivitas sistem yang cocok.
                                 </td>
                             </tr>
 
                             <!-- Data Rows -->
-                            <tr v-for="(log, idx) in logs.data" :key="log.id"
+                            <tr v-for="(log, idx) in logsData.data" :key="log.id"
                                 class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                                 <td class="p-4 font-medium text-slate-500 dark:text-slate-400">
-                                    {{ (logs.current_page - 1) * logs.per_page + idx + 1 }}
+                                    {{ (logsData.current_page - 1) * logsData.per_page + idx + 1 }}
                                 </td>
                                 <td class="p-4 text-slate-700 dark:text-slate-300 font-medium">
                                     <div class="flex items-center gap-1.5">

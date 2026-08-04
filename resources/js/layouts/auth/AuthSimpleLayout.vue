@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { RouterLink } from 'vue-router';
 
 defineProps<{
     title?: string;
@@ -15,9 +15,9 @@ defineProps<{
 
         <div class="relative z-10 mt-6 w-full overflow-hidden bg-white px-6 py-8 shadow-md sm:max-w-md sm:rounded-lg">
             <div class="flex justify-center mb-6">
-                <Link href="/">
+                <RouterLink to="/">
                     <img src="/images/logoHK.png" alt="" class="block h-20 w-auto fill-current">
-                </Link>
+                </RouterLink>
             </div>
             <slot />
         </div>

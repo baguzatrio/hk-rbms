@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch, onMounted } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import axios from 'axios';
 import {
     Plus,
@@ -17,7 +19,6 @@ import {
     Building
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, onMounted, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import PaginationNav from '@/components/PaginationNav.vue';
@@ -67,7 +68,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // State variables
-const page = usePage();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
 
 const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
@@ -88,7 +90,7 @@ const fetchRooms = async (pageNumber = 1) => {
     isLoading.value = true;
 
     try {
-        const response = await axios.get('/api/admin/rooms', {
+        const response = await axios.get('/api/v1/admin/rooms', {
             params: {
                 page: pageNumber,
                 search: searchQuery.value || undefined,
@@ -96,7 +98,7 @@ const fetchRooms = async (pageNumber = 1) => {
             },
         });
 
-        roomsData.value = response.data.rooms;
+        roomsData.value = response.data.rooms || response.data.data || response.data;
     } catch (err) {
         console.error('Error fetching rooms:', err);
     } finally {
@@ -127,39 +129,9 @@ watch(perPage, () => {
     fetchRooms(1);
 });
 
-// Success/Error notifications from session flash
-const checkFlashMessages = () => {
-    const flash = page.props.flash as any;
-
-    if (flash?.success) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: flash.success,
-            icon: 'success',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-
-    if (flash?.error) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: flash.error,
-            icon: 'error',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-};
-
 onMounted(() => {
     fetchRooms(roomsData.value.current_page);
-    checkFlashMessages();
 });
-
-watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Confirm Delete Room
 const confirmDelete = (room: Room) => {
@@ -177,7 +149,7 @@ const confirmDelete = (room: Room) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.delete(`/api/admin/rooms/${room.id}`);
+                const response = await axios.delete(`/api/v1/admin/rooms/${room.id}`);
 
                 Swal.fire({
                     title: 'Berhasil!',
@@ -225,14 +197,14 @@ const fetchPendingBookings = async (roomId: number) => {
     isBookingsLoading.value = true;
 
     try {
-        const response = await axios.get('/api/admin/bookings', {
+        const response = await axios.get('/api/v1/admin/bookings', {
             params: {
                 room_id: roomId,
                 status: 'pending',
                 per_page: 50
             }
         });
-        pendingBookings.value = response.data.bookings.data;
+        pendingBookings.value = response.data.bookings?.data || response.data.data || [];
     } catch (err) {
         console.error('Error fetching pending bookings:', err);
     } finally {
@@ -269,7 +241,7 @@ const handleRoomApprove = (booking: any) => {
     }).then(async (result) => {
         if (result.isConfirmed && activeRoom.value) {
             try {
-                const response = await axios.post(`/api/admin/bookings/${booking.id}/approve`, {
+                const response = await axios.post(`/api/v1/admin/bookings/${booking.id}/approve`, {
                     remarks: result.value || undefined,
                 });
 
@@ -324,7 +296,7 @@ const handleRoomReject = (booking: any) => {
     }).then(async (result) => {
         if (result.isConfirmed && activeRoom.value) {
             try {
-                const response = await axios.post(`/api/admin/bookings/${booking.id}/reject`, {
+                const response = await axios.post(`/api/v1/admin/bookings/${booking.id}/reject`, {
                     remarks: result.value,
                 });
 

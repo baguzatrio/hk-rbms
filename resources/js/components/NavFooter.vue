@@ -10,15 +10,18 @@ import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 type Props = {
-    items: NavItem[];
+    items?: NavItem[];
     class?: string;
 };
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+    items: () => [],
+});
 </script>
 
 <template>
     <SidebarGroup
+        v-if="items && items.length > 0"
         :class="`group-data-[collapsible=icon]:p-0 ${$props.class || ''}`"
     >
         <SidebarGroupContent>

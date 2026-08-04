@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
 import { User as UserIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -11,7 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import UserMenuContent from '@/components/UserMenuContent.vue';
-import type { BreadcrumbItem } from '@/types';
+import { authStore } from '@/stores/auth';
+import type { BreadcrumbItem, User } from '@/types';
 
 withDefaults(
     defineProps<{
@@ -22,8 +22,14 @@ withDefaults(
     },
 );
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
+const defaultUser: User = {
+    id: 0,
+    name: 'User',
+    email: '',
+    role: 'user',
+} as User;
+
+const user = computed<User>(() => authStore.user.value || defaultUser);
 </script>
 
 <template>
@@ -42,11 +48,11 @@ const auth = computed(() => page.props.auth);
                 <DropdownMenuTrigger :as-child="true">
                     <Button variant="ghost" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium">
                         <UserIcon class="h-4.5 w-4.5 text-slate-500 dark:text-slate-400" />
-                        <span class="max-w-[150px] truncate text-slate-700 dark:text-slate-200">{{ auth.user.name }}</span>
+                        <span class="max-w-[150px] truncate text-slate-700 dark:text-slate-200">{{ user.name }}</span>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" class="w-56 p-1.5">
-                    <UserMenuContent :user="auth.user" />
+                    <UserMenuContent :user="user" />
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { RouterLink, useRouter, useRoute } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import { onClickOutside } from '@vueuse/core';
+import axios from 'axios';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -15,7 +17,7 @@ import {
     ChevronDown,
     X
 } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -58,12 +60,71 @@ interface Organization {
     shortname: string;
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+    bookings?: Booking[];
+    rooms?: Room[];
+    organizations?: Organization[];
+    filters?: Filters;
+}>(), {
+    bookings: () => [],
+    rooms: () => [],
+    organizations: () => [],
+    filters: () => ({ room_id: undefined, organization_id: undefined }),
+});
+
+const route = useRoute();
+const router = useRouter();
+
+const apiData = ref<{
     bookings: Booking[];
     rooms: Room[];
     organizations: Organization[];
     filters: Filters;
-}>();
+}>({
+    bookings: [],
+    rooms: [],
+    organizations: [],
+    filters: {},
+});
+
+const isApiLoaded = ref(false);
+
+const fetchScheduleData = async () => {
+    try {
+        const response = await axios.get('/api/v1/dashboard/user', {
+            params: {
+                room_id: route.query.room_id || undefined,
+                organization_id: route.query.organization_id || undefined,
+            }
+        });
+        const res = response.data.data;
+        apiData.value = {
+            bookings: res.calendar_events || [],
+            rooms: res.rooms || [],
+            organizations: res.organizations || [],
+            filters: {
+                room_id: route.query.room_id ? String(route.query.room_id) : undefined,
+                organization_id: route.query.organization_id ? String(route.query.organization_id) : undefined,
+            }
+        };
+        isApiLoaded.value = true;
+    } catch (e) {
+        console.error('Failed to fetch schedule data:', e);
+    }
+};
+
+onMounted(() => {
+    fetchScheduleData();
+});
+
+watch(() => route.query, () => {
+    fetchScheduleData();
+});
+
+const currentRooms = computed(() => isApiLoaded.value ? apiData.value.rooms : (props.rooms || []));
+const currentOrgs = computed(() => isApiLoaded.value ? apiData.value.organizations : (props.organizations || []));
+const currentBookings = computed(() => isApiLoaded.value ? apiData.value.bookings : (props.bookings || []));
+const currentFilters = computed(() => isApiLoaded.value ? apiData.value.filters : (props.filters || {}));
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -86,9 +147,8 @@ const orgDropdownRef = ref<HTMLElement | null>(null);
 const selectedCalendarDate = ref<Date | null>(null);
 const isDateModalOpen = ref(false);
 
-const page = usePage();
 const isAdmin = computed(() => {
-    return (page.props.auth?.user as any)?.role === 'admin';
+    return authStore.isAdmin.value;
 });
 
 const selectDate = (date: Date) => {
@@ -108,9 +168,9 @@ const goToCreateBooking = (date: Date) => {
     const dateStr = formatDateString(date);
 
     if (isAdmin.value) {
-        router.visit(`/admin/bookings/create?date=${dateStr}`);
+        router.push(`/admin/bookings/create?date=${dateStr}`);
     } else {
-        router.visit(`/bookings/create?date=${dateStr}`);
+        router.push(`/bookings/create?date=${dateStr}`);
     }
 };
 
@@ -126,10 +186,10 @@ const filteredRooms = computed(() => {
     const query = searchQuery.value.toLowerCase().trim();
 
     if (!query) {
-        return props.rooms;
+        return currentRooms.value;
     }
 
-    return props.rooms.filter(
+    return currentRooms.value.filter(
         (room) => room.name.toLowerCase().includes(query) || room.floor.toLowerCase().includes(query)
     );
 });
@@ -138,10 +198,10 @@ const filteredOrgs = computed(() => {
     const query = orgSearchQuery.value.toLowerCase().trim();
 
     if (!query) {
-        return props.organizations;
+        return currentOrgs.value;
     }
 
-    return props.organizations.filter(
+    return currentOrgs.value.filter(
         (org) => org.name.toLowerCase().includes(query) || org.shortname.toLowerCase().includes(query)
     );
 });
@@ -151,7 +211,7 @@ const selectedRoomName = computed(() => {
         return 'Semua Ruangan';
     }
 
-    const room = props.rooms.find((r) => r.id === activeRoomId.value);
+    const room = currentRooms.value.find((r) => r.id === activeRoomId.value);
 
     return room ? `${room.name} (Lt. ${room.floor})` : 'Semua Ruangan';
 });
@@ -161,18 +221,20 @@ const selectedOrgName = computed(() => {
         return 'Semua Divisi';
     }
 
-    const org = props.organizations.find((o) => o.id === activeOrgId.value);
+    const org = currentOrgs.value.find((o) => o.id === activeOrgId.value);
 
     return org ? `${org.name} (${org.shortname})` : 'Semua Divisi';
 });
 
 // Get current selected room ID from filter props
 const activeRoomId = computed(() => {
-    return props.filters.room_id ? parseInt(props.filters.room_id) : null;
+    const rId = currentFilters.value?.room_id || (route.query.room_id as string);
+    return rId ? parseInt(rId) : null;
 });
 
 const activeOrgId = computed(() => {
-    return props.filters.organization_id ? parseInt(props.filters.organization_id) : null;
+    const oId = currentFilters.value?.organization_id || (route.query.organization_id as string);
+    return oId ? parseInt(oId) : null;
 });
 
 // Month/Year navigation
@@ -194,39 +256,32 @@ const goToToday = () => {
     currentDate.value = new Date();
 };
 
-// Filter actions via Inertia router
 const filterByRoom = (roomId: number | null) => {
     const data: Record<string, any> = {};
 
-    if (props.filters.organization_id) {
-        data.organization_id = props.filters.organization_id;
+    if (currentFilters.value?.organization_id) {
+        data.organization_id = currentFilters.value.organization_id;
     }
 
     if (roomId !== null) {
         data.room_id = roomId;
     }
 
-    router.get('/schedule', data, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    router.push({ path: '/schedule', query: data });
 };
 
 const filterByOrg = (orgId: number | null) => {
     const data: Record<string, any> = {};
 
-    if (props.filters.room_id) {
-        data.room_id = props.filters.room_id;
+    if (currentFilters.value?.room_id) {
+        data.room_id = currentFilters.value.room_id;
     }
 
     if (orgId !== null) {
         data.organization_id = orgId;
     }
 
-    router.get('/schedule', data, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    router.push({ path: '/schedule', query: data });
 };
 
 // Date helpers
@@ -249,7 +304,7 @@ const getBookingsForDate = (date: Date) => {
         return [];
     }
     const dateStr = formatDateString(date);
-    return props.bookings.filter(b => {
+    return currentBookings.value.filter(b => {
         const start = b.start_date;
         const end = b.end_date || b.start_date;
         return dateStr >= start && dateStr <= end;

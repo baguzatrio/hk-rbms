@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 import axios from 'axios';
 import { ArrowLeft, Save, Loader2 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -48,21 +48,37 @@ interface BookData {
     participants?: string;
 }
 
-const props = defineProps<{
-    rooms: Room[];
-    users: UserOption[];
-    book: BookData;
-}>();
+const props = withDefaults(defineProps<{
+    rooms?: Room[];
+    users?: UserOption[];
+    book?: BookData;
+}>(), {
+    rooms: () => [],
+    users: () => [],
+});
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Booking Ruangan', href: '/bookings' },
-    { title: 'Edit Booking', href: `/bookings/${props.book.id}/edit` },
+    { title: 'Edit Booking', href: `/bookings/${props.book?.id}/edit` },
 ];
 
+const roomsList = ref<Room[]>(props.rooms || []);
+
+const fetchRooms = async () => {
+    if (roomsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/rooms', { params: { per_page: 200 } });
+            roomsList.value = res.data.rooms?.data || res.data.data || [];
+        } catch (e) {}
+    }
+};
+
+onMounted(() => { fetchRooms(); });
+
 const roomOptions = computed(() => {
-    return props.rooms.map(room => ({
+    return roomsList.value.map(room => ({
         id: room.id,
         label: room.name,
         description: `Lantai ${room.floor}, Kapasitas: ${room.capacity} Orang`
@@ -70,7 +86,7 @@ const roomOptions = computed(() => {
 });
 
 const userOptions = computed(() => {
-    return props.users.map(u => ({
+    return (props.users || []).map(u => ({
         id: u.id,
         label: u.name,
         description: u.organization ? `${u.organization.name} (${u.organization.shortname})` : 'Tanpa Divisi'
@@ -79,19 +95,19 @@ const userOptions = computed(() => {
 
 // Form fields setup
 const form = ref({
-    room_id: props.book.room_id,
-    title: props.book.title,
-    start_date: props.book.start_date,
-    end_date: props.book.end_date || props.book.start_date,
-    start_hour: props.book.start_hour,
-    finish_hour: props.book.finish_hour,
-    requester_id: props.book.requester_id,
-    participants: props.book.participants || '',
-    notes: props.book.notes || '',
+    room_id: props.book?.room_id || '',
+    title: props.book?.title || '',
+    start_date: props.book?.start_date || '',
+    end_date: props.book?.end_date || props.book?.start_date || '',
+    start_hour: props.book?.start_hour || '',
+    finish_hour: props.book?.finish_hour || '',
+    requester_id: props.book?.requester_id || '',
+    participants: props.book?.participants || '',
+    notes: props.book?.notes || '',
 });
 
 const selectedUserOrg = computed(() => {
-    const selectedUser = props.users.find(u => u.id === form.value.requester_id);
+    const selectedUser = (props.users || []).find(u => u.id === form.value.requester_id);
     return selectedUser && selectedUser.organization ? `${selectedUser.organization.name} (${selectedUser.organization.shortname})` : 'Tanpa Divisi';
 });
 
@@ -148,7 +164,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.put(`/api/bookings/${props.book.id}`, form.value);
+        const response = await axios.put(`/api/v1/bookings/${props.book?.id}`, form.value);
 
         Swal.fire({
             title: 'Berhasil!',
@@ -159,7 +175,8 @@ const submit = async () => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/bookings');
+        const router = useRouter();
+        router.push('/bookings');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;

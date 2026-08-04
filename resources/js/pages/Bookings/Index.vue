@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch, onMounted } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import axios from 'axios';
 import {
     CalendarPlus,
@@ -15,7 +17,6 @@ import {
     Edit2
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, watch, onMounted } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,8 @@ const props = defineProps<{
     bookings?: PaginatedBookings;
 }>();
 
-const page = usePage();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -87,13 +89,13 @@ const fetchBookings = async (pageNumber = 1) => {
     isLoading.value = true;
 
     try {
-        const response = await axios.get('/api/bookings', {
+        const response = await axios.get('/api/v1/bookings', {
             params: {
                 page: pageNumber,
             },
         });
 
-        bookingsData.value = response.data.bookings;
+        bookingsData.value = response.data.bookings || response.data.data || response.data;
     } catch (err) {
         console.error('Error fetching bookings:', err);
     } finally {
@@ -110,39 +112,9 @@ const handlePageClick = (url: string) => {
     }
 };
 
-// Alert / Flash Messages
-const checkFlashMessages = () => {
-    const flash = page.props.flash as { success?: string; error?: string };
-    const errors = page.props.errors as { error?: string };
-
-    if (flash?.success) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: flash.success,
-            icon: 'success',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-
-    if (flash?.error || errors?.error) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: flash?.error || errors?.error,
-            icon: 'error',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-};
-
 onMounted(() => {
     fetchBookings(bookingsData.value.current_page);
-    checkFlashMessages();
 });
-watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Pagination label helper
 const cleanLabel = (label: string) => {
@@ -207,9 +179,9 @@ const openDetailModal = async (id: number) => {
     activeBooking.value = null;
 
     try {
-        const response = await axios.get(`/api/bookings/${id}`);
+        const response = await axios.get(`/api/v1/bookings/${id}`);
 
-        activeBooking.value = response.data;
+        activeBooking.value = response.data.data || response.data;
     } catch (err) {
         console.error('Error fetching booking detail:', err);
     } finally {
@@ -238,7 +210,7 @@ const confirmCancel = (booking: BookingItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.delete(`/api/bookings/${booking.id}`);
+                const response = await axios.delete(`/api/v1/bookings/${booking.id}`);
 
                 Swal.fire({
                     title: 'Berhasil!',

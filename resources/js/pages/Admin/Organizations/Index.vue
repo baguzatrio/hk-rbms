@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch, onMounted } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import axios from 'axios';
 import {
     Plus,
@@ -9,7 +11,6 @@ import {
     Search
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, onMounted, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import PaginationNav from '@/components/PaginationNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -53,7 +54,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const page = usePage();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
 const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
 let searchTimeout: any = null;
@@ -73,7 +75,7 @@ const fetchOrganizations = async (pageNumber = 1) => {
     isLoading.value = true;
 
     try {
-        const response = await axios.get('/api/admin/organizations', {
+        const response = await axios.get('/api/v1/admin/organizations', {
             params: {
                 page: pageNumber,
                 search: searchQuery.value || undefined,
@@ -81,7 +83,7 @@ const fetchOrganizations = async (pageNumber = 1) => {
             },
         });
 
-        organizationsData.value = response.data.organizations;
+        organizationsData.value = response.data.organizations || response.data.data || response.data;
     } catch (err) {
         console.error('Error fetching organizations:', err);
     } finally {
@@ -112,40 +114,9 @@ watch(perPage, () => {
     fetchOrganizations(1);
 });
 
-const checkFlashMessages = () => {
-    const flash = page.props.flash as any;
-    const errors = page.props.errors as any;
-
-    if (flash?.success) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: flash.success,
-            icon: 'success',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-
-    if (errors?.error) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: errors.error,
-            icon: 'error',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-};
-
 onMounted(() => {
     fetchOrganizations(organizationsData.value.current_page);
-    checkFlashMessages();
 });
-
-watch(() => page.props.flash, checkFlashMessages, { deep: true });
-watch(() => page.props.errors, checkFlashMessages, { deep: true });
 
 const confirmDelete = (org: OrganizationItem) => {
     Swal.fire({
@@ -162,7 +133,7 @@ const confirmDelete = (org: OrganizationItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.delete(`/api/admin/organizations/${org.id}`);
+                const response = await axios.delete(`/api/v1/admin/organizations/${org.id}`);
 
                 Swal.fire({
                     title: 'Berhasil!',

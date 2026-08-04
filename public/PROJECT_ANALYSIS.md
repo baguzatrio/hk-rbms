@@ -12,7 +12,7 @@
 ## 🛠️ Technology Stack & Dependencies
 
 ### **1. Backend Framework & Libraries**
-- **Core Framework**: [Laravel 12](https://laravel.com/) (PHP 8.2+)
+- **Core Framework**: [Laravel 13](https://laravel.com/) (PHP 8.2+)
 - **SPA & Routing**: [Inertia.js v2](https://inertiajs.com/) + Vue Router (`vue-router` v4) & Axios REST API Bridge.
 - **Authentication**: Laravel Fortify (Autentikasi, Password Reset, & Two-Factor Authentication / 2FA)
 - **API Security**: Laravel Sanctum (Autentikasi Token & Session-based API Guard)

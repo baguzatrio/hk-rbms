@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
 import { LogOut } from 'lucide-vue-next';
 import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { logout } from '@/routes';
+import { authStore } from '@/stores/auth';
 import type { User } from '@/types';
 
 type Props = {
     user: User;
 };
 
-const handleLogout = () => {
-    router.flushAll();
+const handleLogout = async () => {
+    await authStore.logout();
 };
 
 defineProps<Props>();
@@ -33,10 +32,11 @@ defineProps<Props>();
     <DropdownMenuItem
         :as-child="true"
         class="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:bg-red-700 focus:text-white cursor-pointer"
+        @click="handleLogout"
     >
-        <Link :href="logout()" @click="handleLogout" as="button" data-test="logout-button" class="flex items-center justify-center gap-2 w-full">
+        <button type="button" class="flex items-center justify-center gap-2 w-full">
             <LogOut class="h-4 w-4" />
             Log out
-        </Link>
+        </button>
     </DropdownMenuItem>
 </template>

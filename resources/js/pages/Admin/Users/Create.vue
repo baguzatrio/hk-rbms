@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,11 @@ interface Organization {
     shortname: string;
 }
 
-const props = defineProps<{
-    organizations: Organization[];
-}>();
+const props = withDefaults(defineProps<{
+    organizations?: Organization[];
+}>(), {
+    organizations: () => [],
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -45,8 +47,21 @@ const form = ref({
 const errors = ref<Record<string, string>>({});
 const isSubmitting = ref(false);
 
+const orgsList = ref<Organization[]>(props.organizations || []);
+
+const fetchOrgs = async () => {
+    if (orgsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/organizations', { params: { per_page: 200 } });
+            orgsList.value = res.data.organizations?.data || res.data.data || [];
+        } catch (e) {}
+    }
+};
+
+onMounted(() => { fetchOrgs(); });
+
 const orgOptions = computed(() => {
-    return props.organizations.map(org => ({
+    return orgsList.value.map(org => ({
         id: org.id,
         label: org.name,
         description: org.shortname
@@ -58,7 +73,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.post('/api/admin/users', form.value);
+        const response = await axios.post('/api/v1/admin/users', form.value);
 
         Swal.fire({
             title: 'Berhasil!',
@@ -69,7 +84,8 @@ const submit = async () => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/admin/users');
+        const router = useRouter();
+        router.push('/admin/users');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;

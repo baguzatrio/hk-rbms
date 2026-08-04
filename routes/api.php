@@ -1,55 +1,65 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\OrganizationController;
-use App\Http\Controllers\Admin\RoomController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\BookingController as AdminBookingController;
-use App\Http\Controllers\BookingController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\BookingController;
+use App\Http\Controllers\Api\V1\RoomDisplayController;
+use App\Http\Controllers\Api\V1\Admin\BookingController as AdminBookingController;
+use App\Http\Controllers\Api\V1\Admin\RoomController as AdminRoomController;
+use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\OrganizationController as AdminOrganizationController;
+use App\Http\Controllers\Api\V1\Admin\ActivityLogController as AdminActivityLogController;
 
-Route::middleware(['auth:sanctum'])->group(function () {
-    // Guest/User REST API Routes
-    Route::get('/bookings', [BookingController::class, 'index']);
-    Route::post('/bookings', [BookingController::class, 'store']);
-    Route::put('/bookings/{book}', [BookingController::class, 'update']);
-    Route::delete('/bookings/{book}', [BookingController::class, 'destroy']);
-    Route::get('/bookings/{book}', [BookingController::class, 'show']);
+/*
+|--------------------------------------------------------------------------
+| API V1 Routes (HK-RBMS REST API)
+|--------------------------------------------------------------------------
+*/
 
-    // Admin REST API Routes
-    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
-        // Dashboard Stats
-        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+Route::prefix('v1')->group(function () {
 
-        // Organizations API
-        Route::get('/organizations', [OrganizationController::class, 'index']);
-        Route::post('/organizations', [OrganizationController::class, 'store']);
-        Route::put('/organizations/{organization}', [OrganizationController::class, 'update']);
-        Route::delete('/organizations/{organization}', [OrganizationController::class, 'destroy']);
+    // Public TV Display Endpoint
+    Route::get('/display/rooms/{room}', [RoomDisplayController::class, 'show']);
 
-        // Rooms API
-        Route::get('/rooms', [RoomController::class, 'index']);
-        Route::post('/rooms', [RoomController::class, 'store']);
-        Route::put('/rooms/{room}', [RoomController::class, 'update']);
-        Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+    // Authentication Endpoints
+    Route::prefix('auth')->group(function () {
+        Route::post('/login',  [AuthController::class, 'login']);
+        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+        Route::get('/me',      [AuthController::class, 'me'])->middleware('auth:sanctum');
+    });
 
-        // Users API
-        Route::get('/users', [UserController::class, 'index']);
-        Route::post('/users', [UserController::class, 'store']);
-        Route::put('/users/{user}', [UserController::class, 'update']);
-        Route::delete('/users/{user}', [UserController::class, 'destroy']);
-        Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
-        Route::get('/users/{user}/bookings', [UserController::class, 'bookings']);
+    // Authenticated Routes
+    Route::middleware(['auth:sanctum'])->group(function () {
 
-        // Bookings API
-        Route::get('/bookings', [AdminBookingController::class, 'index']);
-        Route::post('/bookings', [AdminBookingController::class, 'store']);
-        Route::put('/bookings/{book}', [AdminBookingController::class, 'update']);
-        Route::post('/bookings/{book}/approve', [AdminBookingController::class, 'approve']);
-        Route::post('/bookings/{book}/reject', [AdminBookingController::class, 'reject']);
-        Route::post('/bookings/bulk-approve', [AdminBookingController::class, 'bulkApprove']);
-        Route::post('/bookings/bulk-reject', [AdminBookingController::class, 'bulkReject']);
-        Route::get('/bookings/{book}', [AdminBookingController::class, 'show']);
+        // User Dashboard
+        Route::get('/dashboard/user', [DashboardController::class, 'userDashboard']);
+
+        // User Bookings API
+        Route::apiResource('bookings', BookingController::class);
+
+        // Admin Only Routes
+        Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+
+            // Admin Dashboard
+            Route::get('/dashboard/stats', [DashboardController::class, 'adminDashboard']);
+
+            // Admin Booking Management & Bulk Actions
+            Route::get('/bookings',                   [AdminBookingController::class, 'index']);
+            Route::post('/bookings/{book}/approve',   [AdminBookingController::class, 'approve']);
+            Route::post('/bookings/{book}/reject',    [AdminBookingController::class, 'reject']);
+            Route::post('/bookings/bulk-approve',     [AdminBookingController::class, 'bulkApprove']);
+            Route::post('/bookings/bulk-reject',      [AdminBookingController::class, 'bulkReject']);
+
+            // Master Data API
+            Route::apiResource('rooms',         AdminRoomController::class);
+            Route::apiResource('users',         AdminUserController::class);
+            Route::post('/users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
+            Route::apiResource('organizations', AdminOrganizationController::class);
+
+            // Audit Logs API
+            Route::get('/activity-logs',        [AdminActivityLogController::class, 'index']);
+            Route::get('/activity-logs/export', [AdminActivityLogController::class, 'export']);
+        });
     });
 });

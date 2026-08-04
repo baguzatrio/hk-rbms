@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 import axios from 'axios';
 import { ArrowLeft, CalendarPlus, Loader2 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -35,10 +36,13 @@ interface UserOption {
     };
 }
 
-const props = defineProps<{
-    rooms: Room[];
-    users: UserOption[];
-}>();
+const props = withDefaults(defineProps<{
+    rooms?: Room[];
+    users?: UserOption[];
+}>(), {
+    rooms: () => [],
+    users: () => [],
+});
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -79,10 +83,30 @@ const getInitialDate = () => {
 
 
 
-const page = usePage();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
+
+const roomsList = ref<Room[]>(props.rooms || []);
+
+const fetchRooms = async () => {
+    if (roomsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/rooms', { params: { per_page: 200 } });
+            roomsList.value = res.data.rooms?.data || res.data.data || [];
+        } catch (e) {
+            // fallback: try user-facing if admin fails (e.g. for user role)
+            try {
+                const res2 = await axios.get('/api/v1/bookings/rooms');
+                roomsList.value = res2.data.data || [];
+            } catch (_) {}
+        }
+    }
+};
+
+onMounted(() => { fetchRooms(); });
 
 const roomOptions = computed(() => {
-    return props.rooms.map(room => ({
+    return roomsList.value.map(room => ({
         id: room.id,
         label: room.name,
         description: `Lantai ${room.floor}, Kapasitas: ${room.capacity} Orang`
@@ -90,7 +114,7 @@ const roomOptions = computed(() => {
 });
 
 const userOptions = computed(() => {
-    return props.users.map(u => ({
+    return (props.users || []).map(u => ({
         id: u.id,
         label: u.name,
         description: u.organization ? `${u.organization.name} (${u.organization.shortname})` : 'Tanpa Divisi'
@@ -105,7 +129,7 @@ const form = ref({
     end_date: '',
     start_hour: '',
     finish_hour: '',
-    requester_id: (page.props.auth?.user as any)?.id || '' as string | number,
+    requester_id: authUser.value?.id || '' as string | number,
     participants: '',
     notes: '',
 });
@@ -169,7 +193,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.post('/api/bookings', form.value);
+        const response = await axios.post('/api/v1/bookings', form.value);
 
         Swal.fire({
             title: 'Berhasil!',
@@ -180,7 +204,7 @@ const submit = async () => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/bookings');
+        router.push('/bookings');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;

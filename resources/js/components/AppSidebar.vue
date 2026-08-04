@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import {
     Home,
     LayoutGrid,
@@ -12,11 +11,9 @@ import {
     Building,
     History
 } from 'lucide-vue-next';
-import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
-
 import {
     Sidebar,
     SidebarContent,
@@ -26,14 +23,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
-import admin from '@/routes/admin';
-import bookings from '@/routes/bookings';
-import schedule from '@/routes/schedule';
+import { authStore } from '@/stores/auth';
 import type { NavItem } from '@/types';
 
-const page = usePage();
-const user = computed(() => page.props.auth.user);
+const user = computed(() => authStore.user.value);
 const pendingCount = computed(() => user.value?.pendingCount || 0);
 
 const userMenu: NavItem[] = [
@@ -44,7 +37,7 @@ const userMenu: NavItem[] = [
     },
     {
         title: 'Home',
-        href: dashboard(),
+        href: '/dashboard',
         icon: Home,
     },
     {
@@ -54,8 +47,13 @@ const userMenu: NavItem[] = [
     },
     {
         title: 'Booking Ruangan',
-        href: bookings.index(),
+        href: '/bookings',
         icon: CalendarPlus,
+    },
+    {
+        title: 'Jadwal Rapat',
+        href: '/schedule',
+        icon: CalendarDays,
     },
 ];
 
@@ -67,7 +65,7 @@ const adminMenu = computed<NavItem[]>(() => [
     },
     {
         title: 'Dashboard',
-        href: dashboard(),
+        href: '/dashboard',
         icon: LayoutGrid,
     },
     {
@@ -77,17 +75,17 @@ const adminMenu = computed<NavItem[]>(() => [
     },
     {
         title: 'Room',
-        href: admin.rooms.index(),
+        href: '/admin/rooms',
         icon: Building2,
     },
     {
         title: 'User',
-        href: admin.users.index(),
+        href: '/admin/users',
         icon: Users,
     },
     {
         title: 'Organization',
-        href: admin.organizations.index(),
+        href: '/admin/organizations',
         icon: Building,
     },
     {
@@ -97,13 +95,13 @@ const adminMenu = computed<NavItem[]>(() => [
     },
     {
         title: 'Booking Management',
-        href: admin.bookings.index(),
+        href: '/admin/bookings',
         icon: ClipboardCheck,
         badge: pendingCount.value,
     },
     {
         title: 'Jadwal Rapat',
-        href: schedule.index(),
+        href: '/schedule',
         icon: CalendarDays,
     },
     {
@@ -113,51 +111,32 @@ const adminMenu = computed<NavItem[]>(() => [
     },
     {
         title: 'Activity Log',
-        href: admin.logs.index(),
+        href: '/admin/logs',
         icon: History,
     },
-    // {
-    //     title: 'Display Ruangan',
-    //     href: '/admin/display',
-    //     icon: Monitor,
-    // },
 ]);
-
-const mainNavItems = computed(() => {
-    if (user.value?.role === 'admin') {
-        return adminMenu.value;
-    }
-
-    return userMenu;
-});
-
-
-const footerNavItems: NavItem[] = [
-
-];
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard()">
+                        <a href="/dashboard">
                             <AppLogo />
-                        </Link>
+                        </a>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :items="authStore.isAdmin.value ? adminMenu : userMenu" />
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <NavFooter />
         </SidebarFooter>
     </Sidebar>
-    <slot />
 </template>

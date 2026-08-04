@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ArrowLeft, Save, KeyRound } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import InputError from '@/components/InputError.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,12 @@ interface UserItem {
     organization_id?: number | null;
 }
 
-const props = defineProps<{
-    user: UserItem;
-    organizations: Organization[];
-}>();
+const props = withDefaults(defineProps<{
+    user?: UserItem;
+    organizations?: Organization[];
+}>(), {
+    organizations: () => [],
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -39,22 +41,35 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
     {
         title: 'Edit Pengguna',
-        href: `/admin/users/${props.user.id}/edit`,
+        href: `/admin/users/${props.user?.id}/edit`,
     },
 ];
 
 const form = ref({
-    name: props.user.name,
-    email: props.user.email,
-    role: props.user.role,
-    organization_id: props.user.organization_id || null,
+    name: props.user?.name || '',
+    email: props.user?.email || '',
+    role: props.user?.role || 'user',
+    organization_id: props.user?.organization_id || null,
 });
 
 const errors = ref<Record<string, string>>({});
 const isSubmitting = ref(false);
 
+const orgsList = ref<Organization[]>(props.organizations || []);
+
+const fetchOrgs = async () => {
+    if (orgsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/organizations', { params: { per_page: 200 } });
+            orgsList.value = res.data.organizations?.data || res.data.data || [];
+        } catch (e) {}
+    }
+};
+
+onMounted(() => { fetchOrgs(); });
+
 const orgOptions = computed(() => {
-    return props.organizations.map(org => ({
+    return orgsList.value.map(org => ({
         id: org.id,
         label: org.name,
         description: org.shortname
@@ -66,18 +81,20 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.put(`/api/admin/users/${props.user.id}`, form.value);
+        const response = await axios.put(`/api/v1/admin/users/${props.user?.id}`, form.value);
 
-        Swal.fire({
-            title: 'Berhasil!',
-            text: response.data.message,
+        const router = useRouter();
+
+        await Swal.fire({
             icon: 'success',
+            title: 'Berhasil!',
+            text: 'Data user berhasil diperbarui.',
             confirmButtonColor: '#1e3a8a',
             background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/admin/users');
+        router.push('/admin/users');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;
@@ -103,7 +120,7 @@ const submit = async () => {
 const handleResetPassword = () => {
     Swal.fire({
         title: 'Reset Password',
-        text: `Masukkan password baru untuk user "${props.user.name}"`,
+        text: `Masukkan password baru untuk user "${props.user?.name}"`,
         input: 'password',
         inputLabel: 'Password Baru',
         inputPlaceholder: 'Minimal 8 karakter',
@@ -131,7 +148,7 @@ const handleResetPassword = () => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.patch(`/api/admin/users/${props.user.id}/reset-password`, {
+                const response = await axios.post(`/api/v1/admin/users/${props.user?.id}/reset-password`, {
                     password: result.value,
                 });
 
@@ -174,7 +191,7 @@ const handleResetPassword = () => {
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Edit Data {{ user.name }}
+                        Edit Data {{ user?.name }}
                     </h1>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import {
     Clock,
     User,
@@ -66,7 +66,7 @@ onMounted(() => {
 
     // 15 minutes interval = 15 * 60 * 1000 ms
     reloadInterval = setInterval(() => {
-        router.reload();
+        window.location.reload();
     }, 15 * 60 * 1000);
 });
 

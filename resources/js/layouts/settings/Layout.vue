@@ -1,22 +1,20 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { RouterLink } from 'vue-router';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
-import { edit as editProfile } from '@/routes/profile';
-import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
-        href: editProfile(),
+        href: '/settings/profile',
     },
     {
         title: 'Security',
-        href: editSecurity(),
+        href: '/settings/security',
     },
 ];
 

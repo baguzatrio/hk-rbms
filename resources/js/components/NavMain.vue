@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { RouterLink } from 'vue-router';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -34,14 +34,14 @@ const { isCurrentUrl } = useCurrentUrl();
                 <!-- Menu biasa -->
                 <SidebarMenuItem v-else>
                     <SidebarMenuButton as-child :is-active="isCurrentUrl(item.href)" :tooltip="item.title">
-                        <Link :href="item.href">
+                        <RouterLink :to="item.href">
                             <component :is="item.icon" />
                             <span>{{ item.title }}</span>
                             <SidebarMenuBadge v-if="item.badge"
                                 class="bg-red-500 text-white rounded-full min-w-5 h-5 flex items-center justify-center px-1.5 text-[11px] font-semibold right-2">
                                 {{ item.badge > 99 ? '99+' : item.badge }}
                             </SidebarMenuBadge>
-                        </Link>
+                        </RouterLink>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </template>

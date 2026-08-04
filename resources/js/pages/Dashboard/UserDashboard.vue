@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { RouterLink, useRouter, useRoute } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import { onClickOutside } from '@vueuse/core';
+import axios from 'axios';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -64,18 +66,85 @@ interface Filters {
     organization_id?: string;
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+    myBookings?: Booking[];
+    todaySchedule?: Booking[];
+    bookings?: Booking[];
+    rooms?: Room[];
+    organizations?: Organization[];
+    filters?: Filters;
+}>(), {
+    myBookings: () => [],
+    todaySchedule: () => [],
+    bookings: () => [],
+    rooms: () => [],
+    organizations: () => [],
+    filters: () => ({ room_id: undefined, organization_id: undefined }),
+});
+
+const route = useRoute();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
+const isAdmin = computed(() => authStore.isAdmin.value);
+
+const apiData = ref<{
     myBookings: Booking[];
     todaySchedule: Booking[];
     bookings: Booking[];
     rooms: Room[];
     organizations: Organization[];
     filters: Filters;
-}>();
+}>({
+    myBookings: [],
+    todaySchedule: [],
+    bookings: [],
+    rooms: [],
+    organizations: [],
+    filters: {},
+});
 
-const page = usePage();
-const user = computed(() => page.props.auth.user);
-const isAdmin = computed(() => (user.value as any)?.role === 'admin');
+const isApiLoaded = ref(false);
+
+const fetchDashboardData = async () => {
+    try {
+        const response = await axios.get('/api/v1/dashboard/user', {
+            params: {
+                room_id: route.query.room_id || undefined,
+                organization_id: route.query.organization_id || undefined,
+            }
+        });
+        const res = response.data.data;
+        apiData.value = {
+            myBookings: res.my_bookings || [],
+            todaySchedule: res.today_schedule || [],
+            bookings: res.calendar_events || [],
+            rooms: res.rooms || [],
+            organizations: res.organizations || [],
+            filters: {
+                room_id: route.query.room_id ? String(route.query.room_id) : undefined,
+                organization_id: route.query.organization_id ? String(route.query.organization_id) : undefined,
+            }
+        };
+        isApiLoaded.value = true;
+    } catch (e) {
+        console.error('Failed to fetch dashboard data:', e);
+    }
+};
+
+onMounted(() => {
+    fetchDashboardData();
+});
+
+watch(() => route.query, () => {
+    fetchDashboardData();
+});
+
+const currentRooms = computed(() => isApiLoaded.value ? apiData.value.rooms : (props.rooms || []));
+const currentOrgs = computed(() => isApiLoaded.value ? apiData.value.organizations : (props.organizations || []));
+const currentBookings = computed(() => isApiLoaded.value ? apiData.value.bookings : (props.bookings || []));
+const currentMyBookings = computed(() => isApiLoaded.value ? apiData.value.myBookings : (props.myBookings || []));
+const currentTodaySchedule = computed(() => isApiLoaded.value ? apiData.value.todaySchedule : (props.todaySchedule || []));
+const currentFilters = computed(() => isApiLoaded.value ? apiData.value.filters : (props.filters || {}));
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' }
@@ -141,9 +210,9 @@ const selectedDateBookings = computed(() => {
 const goToCreateBooking = (date: Date) => {
     const dateStr = formatDateString(date);
     if (isAdmin.value) {
-        router.visit(`/admin/bookings/create?date=${dateStr}`);
+        router.push(`/admin/bookings/create?date=${dateStr}`);
     } else {
-        router.visit(`/bookings/create?date=${dateStr}`);
+        router.push(`/bookings/create?date=${dateStr}`);
     }
 };
 
@@ -157,38 +226,40 @@ onClickOutside(orgDropdownRef, () => {
 
 const filteredRooms = computed(() => {
     const query = searchQuery.value.toLowerCase().trim();
-    if (!query) return props.rooms;
-    return props.rooms.filter(
+    if (!query) return currentRooms.value;
+    return currentRooms.value.filter(
         (room) => room.name.toLowerCase().includes(query) || room.floor.toLowerCase().includes(query)
     );
 });
 
 const filteredOrgs = computed(() => {
     const query = orgSearchQuery.value.toLowerCase().trim();
-    if (!query) return props.organizations;
-    return props.organizations.filter(
+    if (!query) return currentOrgs.value;
+    return currentOrgs.value.filter(
         (org) => org.name.toLowerCase().includes(query) || org.shortname.toLowerCase().includes(query)
     );
 });
 
 const selectedRoomName = computed(() => {
     if (activeRoomId.value === null) return 'Semua Ruangan';
-    const room = props.rooms.find((r) => r.id === activeRoomId.value);
+    const room = currentRooms.value.find((r) => r.id === activeRoomId.value);
     return room ? `${room.name} (Lt. ${room.floor})` : 'Semua Ruangan';
 });
 
 const selectedOrgName = computed(() => {
     if (activeOrgId.value === null) return 'Semua Divisi';
-    const org = props.organizations.find((o) => o.id === activeOrgId.value);
+    const org = currentOrgs.value.find((o) => o.id === activeOrgId.value);
     return org ? `${org.name} (${org.shortname})` : 'Semua Divisi';
 });
 
 const activeRoomId = computed(() => {
-    return props.filters.room_id ? parseInt(props.filters.room_id) : null;
+    const rId = currentFilters.value?.room_id || (route.query.room_id as string);
+    return rId ? parseInt(rId) : null;
 });
 
 const activeOrgId = computed(() => {
-    return props.filters.organization_id ? parseInt(props.filters.organization_id) : null;
+    const oId = currentFilters.value?.organization_id || (route.query.organization_id as string);
+    return oId ? parseInt(oId) : null;
 });
 
 const getMonthYearString = computed(() => {
@@ -211,30 +282,24 @@ const goToToday = () => {
 // Filter actions targeting /dashboard instead of /schedule
 const filterByRoom = (roomId: number | null) => {
     const data: Record<string, any> = {};
-    if (props.filters.organization_id) {
-        data.organization_id = props.filters.organization_id;
+    if (currentFilters.value?.organization_id) {
+        data.organization_id = currentFilters.value.organization_id;
     }
     if (roomId !== null) {
         data.room_id = roomId;
     }
-    router.get('/dashboard', data, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    router.push({ path: '/dashboard', query: data });
 };
 
 const filterByOrg = (orgId: number | null) => {
     const data: Record<string, any> = {};
-    if (props.filters.room_id) {
-        data.room_id = props.filters.room_id;
+    if (currentFilters.value?.room_id) {
+        data.room_id = currentFilters.value.room_id;
     }
     if (orgId !== null) {
         data.organization_id = orgId;
     }
-    router.get('/dashboard', data, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    router.push({ path: '/dashboard', query: data });
 };
 
 const isSameDay = (d1: Date, d2: Date) => {
@@ -255,7 +320,7 @@ const getBookingsForDate = (date: Date) => {
         return [];
     }
     const dateStr = formatDateString(date);
-    return props.bookings.filter(b => {
+    return currentBookings.value.filter(b => {
         const start = b.start_date;
         const end = b.end_date || b.start_date;
         return dateStr >= start && dateStr <= end;
@@ -314,7 +379,7 @@ const daysInMonth = computed(() => {
 
 const todayMeetings = computed(() => {
     const todayStr = formatDateString(new Date());
-    return props.bookings
+    return currentBookings.value
         .filter(b => {
             const start = b.start_date;
             const end = b.end_date || b.start_date;
@@ -325,7 +390,7 @@ const todayMeetings = computed(() => {
 
 const upcomingMeetings = computed(() => {
     const todayStr = formatDateString(new Date());
-    return props.bookings
+    return currentBookings.value
         .filter(b => {
             const end = b.end_date || b.start_date;
             return end >= todayStr;
@@ -426,7 +491,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Selamat Datang, {{ user?.name }}
+                        Selamat Datang, {{ authUser?.name }}
                     </h1>
                     <p class="text-sm text-muted-foreground mt-1">
                         Gunakan panel ini untuk mengelola pemesanan ruang rapat dan melihat jadwal terkini.
@@ -434,10 +499,10 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                 </div>
                 <div>
                     <Button as-child class="bg-blue-900 hover:bg-blue-800 text-white gap-2 shadow-xs cursor-pointer">
-                        <Link href="/bookings/create">
+                        <RouterLink to="/bookings/create">
                             <CalendarPlus class="h-4 w-4" />
                             Booking Ruangan
-                        </Link>
+                        </RouterLink>
                     </Button>
                 </div>
             </div>
@@ -812,7 +877,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
-                                <tr v-for="(booking, index) in myBookings" :key="booking.id" class="align-middle">
+                                <tr v-for="(booking, index) in currentMyBookings" :key="booking.id" class="align-middle">
                                     <td class="py-3.5 text-center text-xs text-slate-500">{{ index + 1 }}</td>
                                     <td class="py-3.5 font-semibold text-slate-900 dark:text-white">
                                         {{ booking.title }}

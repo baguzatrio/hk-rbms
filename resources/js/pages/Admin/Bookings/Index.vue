@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import axios from 'axios';
 import {
     CalendarPlus,
@@ -73,7 +74,7 @@ interface Organization {
     shortname: string;
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     bookings?: PaginatedBookings;
     filters?: {
         status?: string;
@@ -81,11 +82,18 @@ const props = defineProps<{
         organization_id?: string;
         search?: string;
     };
-    rooms: Room[];
-    organizations: Organization[];
-}>();
+    rooms?: Room[];
+    organizations?: Organization[];
+}>(), {
+    rooms: () => [],
+    organizations: () => [],
+});
 
-const page = usePage();
+const router = useRouter();
+const authUser = computed(() => authStore.user.value);
+
+const roomsList = ref<Room[]>(props.rooms || []);
+const orgsList = ref<Organization[]>(props.organizations || []);
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -121,37 +129,6 @@ const bookingsData = ref<PaginatedBookings>({
 
 const isLoading = ref(false);
 
-const isAllSelected = computed(() => {
-    const pendingBookings = bookingsData.value.data.filter(b => b.status === 'pending');
-
-    return pendingBookings.length > 0 && pendingBookings.every(b => selectedIds.value.includes(b.id));
-});
-
-const toggleSelectAll = () => {
-    const pendingBookings = bookingsData.value.data.filter(b => b.status === 'pending');
-
-    if (isAllSelected.value) {
-        // Deselect all pending bookings
-        const pendingIds = pendingBookings.map(b => b.id);
-        selectedIds.value = selectedIds.value.filter(id => !pendingIds.includes(id));
-    } else {
-        // Select all pending bookings
-        pendingBookings.forEach(b => {
-            if (!selectedIds.value.includes(b.id)) {
-                selectedIds.value.push(b.id);
-            }
-        });
-    }
-};
-
-const toggleSelect = (id: number) => {
-    if (selectedIds.value.includes(id)) {
-        selectedIds.value = selectedIds.value.filter(item => item !== id);
-    } else {
-        selectedIds.value.push(id);
-    }
-};
-
 const fetchBookings = async (pageNumber = 1) => {
     isLoading.value = true;
     selectedIds.value = [];
@@ -159,7 +136,7 @@ const fetchBookings = async (pageNumber = 1) => {
     const statusVal = activeTab.value === 'approval' ? 'pending' : statusFilter.value;
 
     try {
-        const response = await axios.get('/api/admin/bookings', {
+        const response = await axios.get('/api/v1/admin/bookings', {
             params: {
                 page: pageNumber,
                 status: statusVal || undefined,
@@ -169,13 +146,33 @@ const fetchBookings = async (pageNumber = 1) => {
             },
         });
 
-        bookingsData.value = response.data.bookings;
+        bookingsData.value = response.data.bookings || response.data.data;
     } catch (err) {
         console.error('Error fetching bookings:', err);
     } finally {
         isLoading.value = false;
     }
 };
+
+const fetchAuxiliaryData = async () => {
+    if (roomsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/rooms');
+            roomsList.value = res.data.data || res.data.rooms || [];
+        } catch (e) {}
+    }
+    if (orgsList.value.length === 0) {
+        try {
+            const res = await axios.get('/api/v1/admin/organizations');
+            orgsList.value = res.data.data || res.data.organizations || [];
+        } catch (e) {}
+    }
+};
+
+onMounted(() => {
+    fetchBookings(bookingsData.value.current_page);
+    fetchAuxiliaryData();
+});
 
 const handlePageClick = (url: string) => {
     const urlObj = new URL(url);
@@ -207,40 +204,9 @@ watch(activeTab, () => {
     fetchBookings(1);
 });
 
-// Alert / Flash Messages
-const checkFlashMessages = () => {
-    const flash = page.props.flash as { success?: string; error?: string };
-    const errors = page.props.errors as { error?: string };
-
-    if (flash?.success) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: flash.success,
-            icon: 'success',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-
-    if (flash?.error || errors?.error) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: flash?.error || errors?.error,
-            icon: 'error',
-            confirmButtonColor: '#1e3a8a',
-            background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
-        });
-    }
-};
-
 onMounted(() => {
     fetchBookings(bookingsData.value.current_page);
-    checkFlashMessages();
 });
-
-watch(() => page.props.flash, checkFlashMessages, { deep: true });
 
 // Pagination label helper
 const cleanLabel = (label: string) => {
@@ -305,9 +271,9 @@ const openDetailModal = async (id: number) => {
     activeBooking.value = null;
 
     try {
-        const response = await axios.get(`/api/admin/bookings/${id}`);
+        const response = await axios.get(`/api/v1/admin/bookings/${id}`);
 
-        activeBooking.value = response.data;
+        activeBooking.value = response.data.data || response.data;
     } catch (err) {
         console.error('Error fetching booking detail:', err);
     } finally {
@@ -338,7 +304,7 @@ const handleApprove = (booking: BookingItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.post(`/api/admin/bookings/${booking.id}/approve`, {
+                const response = await axios.post(`/api/v1/admin/bookings/${booking.id}/approve`, {
                     remarks: result.value || undefined,
                 });
 
@@ -355,7 +321,7 @@ const handleApprove = (booking: BookingItem) => {
             } catch (err: any) {
                 Swal.fire({
                     title: 'Gagal!',
-                    text: err.response?.data?.message || 'Terjadi kesalahan saat menyetujui booking.',
+                    text: err.response?.data?.message || 'Terjadi kesalahan saat memproses booking.',
                     icon: 'error',
                     confirmButtonColor: '#1e3a8a',
                     background: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
@@ -381,11 +347,11 @@ const handleEditClick = (booking: BookingItem) => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         }).then((result) => {
             if (result.isConfirmed) {
-                router.visit(`/admin/bookings/${booking.id}/edit`);
+                router.push(`/admin/bookings/${booking.id}/edit`);
             }
         });
     } else {
-        router.visit(`/admin/bookings/${booking.id}/edit`);
+        router.push(`/admin/bookings/${booking.id}/edit`);
     }
 };
 
@@ -420,7 +386,7 @@ const handleReject = (booking: BookingItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.post(`/api/admin/bookings/${booking.id}/reject`, {
+                const response = await axios.post(`/api/v1/admin/bookings/${booking.id}/reject`, {
                     remarks: result.value,
                 });
 
@@ -468,7 +434,7 @@ const handleBulkApprove = () => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.post('/api/admin/bookings/bulk-approve', {
+                const response = await axios.post('/api/v1/admin/bookings/bulk-approve', {
                     ids: selectedIds.value,
                 });
 
@@ -525,7 +491,7 @@ const handleBulkReject = () => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.post('/api/admin/bookings/bulk-reject', {
+                const response = await axios.post('/api/v1/admin/bookings/bulk-reject', {
                     ids: selectedIds.value,
                     remarks: result.value,
                 });
@@ -580,6 +546,34 @@ const canShowCancel = (booking: BookingItem) => {
     }
 
     return false;
+};
+
+// Bulk selection helpers
+const isAllSelected = computed(() => {
+    const pendingIds = bookingsData.value.data
+        .filter(b => b.status === 'pending')
+        .map(b => b.id);
+    return pendingIds.length > 0 && pendingIds.every(id => selectedIds.value.includes(id));
+});
+
+const toggleSelectAll = () => {
+    const pendingIds = bookingsData.value.data
+        .filter(b => b.status === 'pending')
+        .map(b => b.id);
+    if (isAllSelected.value) {
+        selectedIds.value = selectedIds.value.filter(id => !pendingIds.includes(id));
+    } else {
+        const merged = new Set([...selectedIds.value, ...pendingIds]);
+        selectedIds.value = [...merged];
+    }
+};
+
+const toggleSelect = (id: number) => {
+    if (selectedIds.value.includes(id)) {
+        selectedIds.value = selectedIds.value.filter(i => i !== id);
+    } else {
+        selectedIds.value = [...selectedIds.value, id];
+    }
 };
 </script>
 

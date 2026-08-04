@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -46,7 +46,7 @@ const submit = async () => {
     errors.value = {};
 
     try {
-        const response = await axios.put(`/api/admin/organizations/${props.organization.id}`, form.value);
+        const response = await axios.put(`/api/v1/admin/organizations/${props.organization.id}`, form.value);
 
         Swal.fire({
             title: 'Berhasil!',
@@ -57,7 +57,8 @@ const submit = async () => {
             color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
         });
 
-        router.visit('/admin/organizations');
+        const router = useRouter();
+        router.push('/admin/organizations');
     } catch (err: any) {
         if (err.response && err.response.status === 422) {
             const validationErrors = err.response.data.errors;

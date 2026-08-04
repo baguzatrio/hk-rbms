@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { RouterLink, useRouter } from 'vue-router';
+import { authStore } from '@/stores/auth';
 import axios from 'axios';
 import {
     Plus,
@@ -79,8 +80,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const page = usePage();
-const currentUser = computed(() => (page.props.auth as any)?.user);
+const router = useRouter();
+const currentUser = computed(() => authStore.user.value);
 const searchQuery = ref(props.filters?.search || '');
 const perPage = ref(props.filters?.per_page || 10);
 let searchTimeout: any = null;
@@ -106,7 +107,7 @@ const fetchUsers = async (pageNumber = 1) => {
     isLoading.value = true;
 
     try {
-        const response = await axios.get('/api/admin/users', {
+        const response = await axios.get('/api/v1/admin/users', {
             params: {
                 page: pageNumber,
                 search: searchQuery.value || undefined,
@@ -117,7 +118,7 @@ const fetchUsers = async (pageNumber = 1) => {
         if (response.data.users) {
             usersData.value = response.data.users;
         } else {
-            usersData.value = response.data;
+            usersData.value = response.data.data || response.data;
         }
     } catch (err) {
         console.error('Error fetching users:', err);
@@ -173,7 +174,7 @@ const confirmDelete = (user: UserItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.delete(`/api/admin/users/${user.id}`);
+                const response = await axios.delete(`/api/v1/admin/users/${user.id}`);
 
                 Swal.fire({
                     title: 'Berhasil!',
@@ -231,7 +232,7 @@ const handleResetPassword = (user: UserItem) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await axios.patch(`/api/admin/users/${user.id}/reset-password`, {
+                const response = await axios.post(`/api/v1/admin/users/${user.id}/reset-password`, {
                     password: result.value,
                 });
 
