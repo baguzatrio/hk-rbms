@@ -490,7 +490,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                                     <div class="flex flex-col gap-1 mt-1.5 text-xs text-muted-foreground">
                                         <span class="flex items-center gap-1">
                                             <MapPin class="h-3 w-3 shrink-0" />
-                                            {{ meeting.room?.name }} (Lt. {{ meeting.room?.floor }})
+                                            {{ meeting.room?.name }} {{ meeting.room?.floor ? (meeting.room.floor.toLowerCase().includes('lt') ? `(${meeting.room.floor})` : `(Lt. ${meeting.room.floor})`) : '' }}
                                         </span>
                                         <span class="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
                                             <Clock class="h-3 w-3 shrink-0" />

@@ -29,11 +29,17 @@ interface Organization {
     shortname: string;
 }
 
+interface UserRole {
+    id: number;
+    name: string;
+}
+
 interface UserItem {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'user';
+    role?: string;
+    roles?: UserRole[];
     organization_id?: number | null;
     organization?: Organization | null;
     created_at: string;
@@ -78,6 +84,13 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/admin/users',
     },
 ];
+
+const getUserRole = (user: UserItem | null): string => {
+    if (!user) return 'user';
+    if (user.role) return user.role;
+    if (user.roles && user.roles.length > 0) return user.roles[0].name;
+    return 'user';
+};
 
 // State variables
 const page = usePage();
@@ -475,12 +488,12 @@ return dateStr;
                                     {{ user.email }}
                                 </td>
                                 <td class="p-4">
-                                    <Badge :variant="user.role === 'admin' ? 'default' : 'secondary'"
-                                        :class="user.role === 'admin'
+                                    <Badge :variant="getUserRole(user) === 'admin' ? 'default' : 'secondary'"
+                                        :class="getUserRole(user) === 'admin'
                                             ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/50'
                                             : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'"
                                         class="text-[10px] px-2 py-0 border capitalize">
-                                        {{ user.role }}
+                                        {{ getUserRole(user) }}
                                     </Badge>
                                 </td>
                                 <td class="p-4 text-slate-700 dark:text-slate-300">
@@ -532,12 +545,12 @@ return dateStr;
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Peran
                                 Akses</span>
                             <div class="pt-1">
-                                <Badge :variant="activeUser.role === 'admin' ? 'default' : 'secondary'"
-                                    :class="activeUser.role === 'admin'
+                                <Badge :variant="getUserRole(activeUser) === 'admin' ? 'default' : 'secondary'"
+                                    :class="getUserRole(activeUser) === 'admin'
                                         ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/50'
                                         : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'"
                                     class="text-[10px] px-2 py-0 border font-semibold capitalize">
-                                    {{ activeUser.role }}
+                                    {{ getUserRole(activeUser) }}
                                 </Badge>
                             </div>
                         </div>

@@ -121,10 +121,31 @@ class ActivityLogController extends Controller
         }
 
         if ($request->filled('status_filter') && $request->status_filter !== 'all') {
-            $query->where(function ($q) use ($request) {
-                $status = $request->status_filter;
-                $q->where('properties->attributes->status', $status)
+            $status = strtolower($request->status_filter);
+            $query->where(function ($q) use ($status) {
+                $q->where('event', $status)
+                  ->orWhere('properties->attributes->status', $status)
                   ->orWhere('properties->old->status', $status);
+
+                if ($status === 'created') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%membuat%']);
+                } elseif ($status === 'updated') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%mengubah%']);
+                } elseif ($status === 'deleted') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%menghapus%']);
+                } elseif ($status === 'approved') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%menyetujui%'])
+                      ->orWhereRaw('LOWER(description) LIKE ?', ['%disetujui%']);
+                } elseif ($status === 'rejected') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%menolak%'])
+                      ->orWhereRaw('LOWER(description) LIKE ?', ['%ditolak%']);
+                } elseif ($status === 'cancelled') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%membatalkan%'])
+                      ->orWhereRaw('LOWER(description) LIKE ?', ['%dibatalkan%']);
+                } elseif ($status === 'pending') {
+                    $q->orWhereRaw('LOWER(description) LIKE ?', ['%pending%'])
+                      ->orWhereRaw('LOWER(description) LIKE ?', ['%menunggu%']);
+                }
             });
         }
 

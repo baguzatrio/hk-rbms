@@ -22,7 +22,7 @@ class UserController extends Controller
                 $perPage = 10;
             }
 
-            $users = User::with('organization')
+            $users = User::with(['organization', 'roles'])
                 ->when($search, function ($query, $search) {
                     $searchLower = strtolower($search);
                     $query->where(function ($q) use ($searchLower) {
@@ -36,6 +36,11 @@ class UserController extends Controller
                 ->latest()
                 ->paginate($perPage)
                 ->withQueryString();
+
+            $users->getCollection()->transform(function ($user) {
+                $user->role = $user->roles->first()?->name ?? 'user';
+                return $user;
+            });
 
             return response()->json([
                 'users' => $users,
@@ -70,7 +75,6 @@ class UserController extends Controller
             'name'            => $validated['name'],
             'email'           => $validated['email'],
             'password'        => Hash::make($validated['password']),
-            'role'            => $validated['role'],
             'organization_id' => $validated['organization_id'],
         ]);
 
@@ -102,7 +106,6 @@ class UserController extends Controller
         $user->update([
             'name'            => $validated['name'],
             'email'           => $validated['email'],
-            'role'            => $validated['role'],
             'organization_id' => $validated['organization_id'],
         ]);
 

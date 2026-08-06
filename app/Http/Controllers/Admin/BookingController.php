@@ -256,7 +256,7 @@ class BookingController extends Controller
     {
         return Inertia::render('Admin/Bookings/Create', [
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::withoutRole('admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 
@@ -352,7 +352,7 @@ class BookingController extends Controller
                 'participants' => $book->participants,
             ],
             'rooms' => Room::active()->select('id', 'name', 'floor', 'capacity')->get(),
-            'users' => User::where('role', '!=', 'admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
+            'users' => User::withoutRole('admin')->with('organization')->select('id', 'name', 'organization_id')->get(),
         ]);
     }
 

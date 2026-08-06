@@ -560,8 +560,8 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                 </div>
 
                 <!-- Calendar Grid -->
-                <Card class="border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm h-[780px] flex flex-col">
-                    <CardContent class="p-0 flex-1 overflow-y-auto">
+                <Card class="border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm h-auto flex flex-col">
+                    <CardContent class="p-0 flex-1">
                         <!-- Days of Week Header -->
                         <div
                             class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-center py-3 text-xs font-semibold">
@@ -628,7 +628,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
 
             <!-- Agenda View Mode -->
             <div v-else-if="viewMode === 'agenda'" class="space-y-4">
-                <Card class="border-slate-100 dark:border-slate-800/80 shadow-sm h-[780px] flex flex-col">
+                <Card class="border-slate-100 dark:border-slate-800/80 shadow-sm h-auto flex flex-col">
                     <CardHeader class="pb-3 border-b border-slate-50 dark:border-slate-800/50 shrink-0">
                         <div class="flex items-center justify-between">
                             <div>
@@ -645,7 +645,7 @@ const isPastBooking = (dateVal: string | Date, finishHour: string) => {
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent class="p-6 flex-1 overflow-y-auto">
+                    <CardContent class="p-6 flex-1">
                         <div v-if="agendaBookings.length === 0" class="py-16 text-center">
                             <CalendarIcon class="h-10 w-10 text-slate-300 mx-auto mb-3" />
                             <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada agenda rapat
